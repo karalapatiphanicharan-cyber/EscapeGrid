@@ -6,14 +6,23 @@ import MazeCanvas from './components/MazeCanvas';
 import ControlPanel from './components/ControlPanel';
 import StatsPanel from './components/StatsPanel';
 import VictoryModal from './components/VictoryModal';
+import GameOverModal from './components/GameOverModal';
+import EnemyStatusCard from './components/EnemyStatusCard';
 import MobileControls from './components/MobileControls';
 import { useGame } from './hooks/useGame';
 import { useTimer } from './hooks/useTimer';
 import { useKeyboard } from './hooks/useKeyboard';
-import { CELL_SIZE } from './game/constants';
 
 const App: React.FC = () => {
-  const { gameState, bestTime, startNewGame, restartGame, movePlayer } = useGame('easy');
+  const {
+    gameState,
+    bestTime,
+    enemyEnabled,
+    startNewGame,
+    restartGame,
+    movePlayer,
+    toggleEnemySystem
+  } = useGame('easy');
   const { time, resetTimer } = useTimer(gameState.status === 'playing');
 
   useKeyboard(movePlayer);
@@ -47,6 +56,11 @@ const App: React.FC = () => {
             difficulty={gameState.difficulty}
             bestTime={bestTime}
           />
+          <EnemyStatusCard
+            enemies={gameState.enemies}
+            enabled={enemyEnabled}
+            onToggle={toggleEnemySystem}
+          />
           <ControlPanel
             currentDifficulty={gameState.difficulty}
             onDifficultyChange={handleNewMaze}
@@ -63,6 +77,7 @@ const App: React.FC = () => {
             <MazeCanvas
               maze={gameState.maze}
               playerPosition={gameState.playerPosition}
+              enemies={gameState.enemies}
             />
 
             <div className="mt-8 w-full max-w-md">
@@ -88,6 +103,17 @@ const App: React.FC = () => {
           time={time}
           moves={gameState.moves}
           difficulty={gameState.difficulty}
+          onRestart={handleRestart}
+          onNewMaze={() => handleNewMaze(gameState.difficulty)}
+        />
+      )}
+
+      {gameState.status === 'lost' && (
+        <GameOverModal
+          time={time}
+          moves={gameState.moves}
+          difficulty={gameState.difficulty}
+          capturedBy={gameState.capturedBy}
           onRestart={handleRestart}
           onNewMaze={() => handleNewMaze(gameState.difficulty)}
         />
