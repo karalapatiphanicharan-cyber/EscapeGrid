@@ -5,11 +5,11 @@ import { COLORS, WALL_THICKNESS } from '../game/constants';
 interface MazeCanvasProps {
   maze: Maze;
   playerPosition: Position;
-  cellSize: number;
 }
 
-const MazeCanvas: React.FC<MazeCanvasProps> = ({ maze, playerPosition, cellSize }) => {
+const MazeCanvas: React.FC<MazeCanvasProps> = ({ maze, playerPosition }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [animationFrame, setAnimationFrame] = useState(0);
 
   useEffect(() => {
@@ -24,14 +24,19 @@ const MazeCanvas: React.FC<MazeCanvasProps> = ({ maze, playerPosition, cellSize 
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // Fixed container size logic
+    const containerSize = Math.min(container.clientWidth, container.clientHeight, 700) - 32; // 32 for padding
     const size = maze.length;
-    canvas.width = size * cellSize;
-    canvas.height = size * cellSize;
+    const cellSize = containerSize / size;
+
+    canvas.width = containerSize;
+    canvas.height = containerSize;
 
     // Clear canvas
     ctx.fillStyle = COLORS.background;
@@ -39,7 +44,7 @@ const MazeCanvas: React.FC<MazeCanvasProps> = ({ maze, playerPosition, cellSize 
 
     // Draw maze walls
     ctx.strokeStyle = COLORS.wall;
-    ctx.lineWidth = WALL_THICKNESS;
+    ctx.lineWidth = Math.max(1, WALL_THICKNESS * (cellSize / 20));
     ctx.lineCap = 'round';
     ctx.shadowBlur = 0;
 
@@ -128,18 +133,26 @@ const MazeCanvas: React.FC<MazeCanvasProps> = ({ maze, playerPosition, cellSize 
 
     ctx.restore();
 
-  }, [maze, playerPosition, cellSize, animationFrame]);
+  }, [maze, playerPosition, animationFrame]);
 
   return (
-    <div className="relative p-1 bg-slate-900 rounded-xl border-2 border-cyan-500/40 shadow-[0_0_30px_rgba(34,211,238,0.2)] overflow-auto max-w-full max-h-[80vh] flex items-center justify-center">
-      <div className="p-4 bg-slate-950 rounded-lg">
-        <canvas
-          ref={canvasRef}
-          className="block"
-          style={{
-            imageRendering: 'pixelated',
-          }}
-        />
+    <div
+      ref={containerRef}
+      className="relative w-full h-full min-h-[300px] flex items-center justify-center p-4"
+    >
+      <div className="relative p-1 bg-slate-900 rounded-xl border-2 border-cyan-500/40 shadow-[0_0_30px_rgba(34,211,238,0.2)] overflow-hidden flex items-center justify-center transition-all duration-500">
+        <div className="p-2 md:p-4 bg-slate-950 rounded-lg">
+          <canvas
+            ref={canvasRef}
+            className="block"
+            style={{
+              imageRendering: 'pixelated',
+              maxWidth: '100%',
+              maxHeight: '100%',
+              aspectRatio: '1/1'
+            }}
+          />
+        </div>
       </div>
     </div>
   );
