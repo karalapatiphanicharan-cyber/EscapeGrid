@@ -55,18 +55,19 @@ const App: React.FC = () => {
           />
         </Sidebar>
 
-        <section className="flex-1 flex items-center justify-center p-4 lg:p-8 bg-slate-900/20 overflow-auto">
-          <div className="relative group">
+        <section className="flex-1 flex items-center justify-center p-4 lg:p-12 bg-slate-900/5 overflow-hidden">
+          <div className="relative group w-full h-full flex flex-col items-center justify-center max-w-[800px] max-h-[800px]">
             {/* Background Glow */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-2xl blur opacity-20 group-hover:opacity-30 transition duration-1000 group-hover:duration-200"></div>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.05)_0%,transparent_70%)] pointer-events-none" />
 
             <MazeCanvas
               maze={gameState.maze}
               playerPosition={gameState.playerPosition}
-              cellSize={CELL_SIZE}
             />
 
-            <MobileControls onMove={movePlayer} />
+            <div className="mt-8 w-full max-w-md">
+              <MobileControls onMove={movePlayer} />
+            </div>
 
             {gameState.status === 'idle' && (
               <div className="absolute inset-0 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm rounded-xl">
