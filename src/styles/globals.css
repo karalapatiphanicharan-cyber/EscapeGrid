@@ -7,19 +7,16 @@
 }
 
 body {
-  @apply bg-[#0a0a0c] text-slate-200 overflow-hidden antialiased;
-  background-image:
-    radial-gradient(circle at 50% -20%, #1e1b4b 0%, transparent 50%),
-    radial-gradient(circle at 0% 100%, #1e1b4b 0%, transparent 40%);
+  @apply bg-[#0a0a0c] text-slate-200 overflow-hidden antialiased selection:bg-cyan-500/30;
 }
 
 @layer base {
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 4px;
+    height: 4px;
   }
   ::-webkit-scrollbar-track {
-    @apply bg-slate-950;
+    @apply bg-transparent;
   }
   ::-webkit-scrollbar-thumb {
     @apply bg-slate-800 rounded-full hover:bg-cyan-500/50 transition-colors;
@@ -27,9 +24,28 @@ body {
 }
 
 .glass {
-  @apply backdrop-blur-md bg-slate-900/40 border border-white/10;
+  @apply backdrop-blur-xl bg-slate-900/30 border border-white/5 shadow-2xl;
 }
 
-.neon-border {
-  @apply border border-cyan-500/30 shadow-[0_0_15px_rgba(34,211,238,0.1)];
+.neon-border-cyan {
+  @apply border border-cyan-500/30 shadow-[0_0_20px_rgba(34,211,238,0.15)];
+}
+
+.neon-glow-purple {
+  @apply shadow-[0_0_30px_rgba(168,85,247,0.2)];
+}
+
+.font-cyber {
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: -0.02em;
+}
+
+/* Animations */
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(0.98); }
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 3s ease-in-out infinite;
 }

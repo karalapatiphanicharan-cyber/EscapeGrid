@@ -1,37 +1,40 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 export const useTimer = (isActive: boolean) => {
   const [time, setTime] = useState(0);
-  const startTimeRef = useRef<number | null>(null);
-  const accumulatedTimeRef = useRef(0);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startTimer = useCallback(() => {
+    if (intervalRef.current) return;
+    intervalRef.current = setInterval(() => {
+      setTime((prev) => prev + 1000);
+    }, 1000);
+  }, []);
+
+  const pauseTimer = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
+
+  const resetTimer = useCallback(() => {
+    pauseTimer();
+    setTime(0);
+    if (isActive) {
+      startTimer();
+    }
+  }, [isActive, pauseTimer, startTimer]);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-
     if (isActive) {
-      startTimeRef.current = Date.now();
-      interval = setInterval(() => {
-        if (startTimeRef.current) {
-          setTime(accumulatedTimeRef.current + (Date.now() - startTimeRef.current));
-        }
-      }, 10);
+      startTimer();
     } else {
-      if (startTimeRef.current) {
-        accumulatedTimeRef.current += Date.now() - startTimeRef.current;
-        startTimeRef.current = null;
-      }
+      pauseTimer();
     }
 
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isActive]);
-
-  const resetTimer = () => {
-    setTime(0);
-    startTimeRef.current = null;
-    accumulatedTimeRef.current = 0;
-  };
+    return () => pauseTimer();
+  }, [isActive, startTimer, pauseTimer]);
 
   return { time, resetTimer };
 };

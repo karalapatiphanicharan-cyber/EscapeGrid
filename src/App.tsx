@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import GameHeader from './components/GameHeader';
 import Sidebar from './components/Sidebar';
+import Background from './components/Background';
 import MazeCanvas from './components/MazeCanvas';
 import ControlPanel from './components/ControlPanel';
 import StatsPanel from './components/StatsPanel';
@@ -23,11 +24,22 @@ const App: React.FC = () => {
     }
   }, [gameState.status, gameState.moves, resetTimer]);
 
+  const handleNewMaze = (difficulty = gameState.difficulty) => {
+    resetTimer();
+    startNewGame(difficulty);
+  };
+
+  const handleRestart = () => {
+    resetTimer();
+    restartGame();
+  };
+
   return (
-    <div className="flex flex-col h-screen max-h-screen overflow-hidden bg-slate-950 text-slate-200 font-mono">
+    <div className="flex flex-col h-screen max-h-screen overflow-hidden bg-slate-950 text-slate-200 font-mono relative">
+      <Background />
       <GameHeader />
 
-      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
         <Sidebar>
           <StatsPanel
             time={time}
@@ -37,9 +49,9 @@ const App: React.FC = () => {
           />
           <ControlPanel
             currentDifficulty={gameState.difficulty}
-            onDifficultyChange={startNewGame}
-            onRestart={restartGame}
-            onNewMaze={() => startNewGame(gameState.difficulty)}
+            onDifficultyChange={handleNewMaze}
+            onRestart={handleRestart}
+            onNewMaze={() => handleNewMaze(gameState.difficulty)}
           />
         </Sidebar>
 
@@ -72,11 +84,11 @@ const App: React.FC = () => {
 
       {gameState.status === 'won' && (
         <VictoryModal
-          time={gameState.endTime! - gameState.startTime!}
+          time={time}
           moves={gameState.moves}
           difficulty={gameState.difficulty}
-          onRestart={restartGame}
-          onNewMaze={() => startNewGame(gameState.difficulty)}
+          onRestart={handleRestart}
+          onNewMaze={() => handleNewMaze(gameState.difficulty)}
         />
       )}
 

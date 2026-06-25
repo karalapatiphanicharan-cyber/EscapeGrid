@@ -1,12 +1,12 @@
 import React from 'react';
-import { Terminal } from 'lucide-react';
+import Logo from './Logo';
 
 const GameHeader: React.FC = () => {
   return (
-    <header className="flex items-center justify-between p-6 border-b border-cyan-500/20 bg-slate-950/50 backdrop-blur-md">
+    <header className="flex items-center justify-between p-6 border-b border-cyan-500/20 bg-slate-950/50 backdrop-blur-md relative z-50">
       <div className="flex items-center gap-3">
-        <div className="p-2 bg-cyan-500/10 rounded-lg border border-cyan-500/30">
-          <Terminal className="w-6 h-6 text-cyan-400" />
+        <div className="p-1 bg-cyan-500/5 rounded-lg border border-cyan-500/20">
+          <Logo className="w-10 h-10 text-cyan-400" />
         </div>
         <div>
           <h1 className="text-2xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">
