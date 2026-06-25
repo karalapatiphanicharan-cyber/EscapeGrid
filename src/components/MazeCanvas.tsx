@@ -1,13 +1,14 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Maze, Position } from '../game/types';
+import { Maze, Position, Enemy } from '../game/types';
 import { COLORS, WALL_THICKNESS } from '../game/constants';
 
 interface MazeCanvasProps {
   maze: Maze;
   playerPosition: Position;
+  enemies: Enemy[];
 }
 
-const MazeCanvas: React.FC<MazeCanvasProps> = ({ maze, playerPosition }) => {
+const MazeCanvas: React.FC<MazeCanvasProps> = ({ maze, playerPosition, enemies }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [animationFrame, setAnimationFrame] = useState(0);
@@ -106,6 +107,37 @@ const MazeCanvas: React.FC<MazeCanvasProps> = ({ maze, playerPosition }) => {
       });
     });
 
+    // Draw enemies
+    enemies.forEach(enemy => {
+        const ex = enemy.position.x * cellSize;
+        const ey = enemy.position.y * cellSize;
+        const enemyPulse = Math.sin(animationFrame * 0.15) * 4 + 10;
+
+        ctx.save();
+        ctx.translate(ex + cellSize / 2, ey + cellSize / 2);
+
+        // Enemy Glow
+        ctx.shadowBlur = enemyPulse;
+        ctx.shadowColor = enemy.color;
+        ctx.fillStyle = enemy.color;
+
+        // Inner core (Red glowing orb)
+        ctx.beginPath();
+        ctx.arc(0, 0, cellSize / 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Rotating outer ring
+        ctx.rotate(animationFrame * (enemy.type === 'scout' ? 0.08 : 0.04));
+        ctx.strokeStyle = enemy.color;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([cellSize / 6, cellSize / 6]);
+        ctx.beginPath();
+        ctx.arc(0, 0, cellSize / 2.5, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.restore();
+    });
+
     // Draw player
     const px = playerPosition.x * cellSize;
     const py = playerPosition.y * cellSize;
@@ -133,7 +165,7 @@ const MazeCanvas: React.FC<MazeCanvasProps> = ({ maze, playerPosition }) => {
 
     ctx.restore();
 
-  }, [maze, playerPosition, animationFrame]);
+  }, [maze, playerPosition, enemies, animationFrame]);
 
   return (
     <div

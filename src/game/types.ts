@@ -21,14 +21,31 @@ export interface Cell {
 
 export type Maze = Cell[][];
 
+export type EnemyType = 'scout' | 'hunter' | 'sentinel';
+export type EnemyMode = 'random' | 'tracking' | 'bfs-hunter';
+export type EnemyState = 'searching' | 'tracking' | 'pursuing';
+
+export interface Enemy {
+  id: string;
+  type: EnemyType;
+  position: Position;
+  mode: EnemyMode;
+  state: EnemyState;
+  speed: number;
+  color: string;
+}
+
 export interface GameState {
   maze: Maze;
   playerPosition: Position;
   difficulty: Difficulty;
   moves: number;
-  status: 'playing' | 'won' | 'idle';
+  status: 'playing' | 'won' | 'lost' | 'idle';
   startTime: number | null;
   endTime: number | null;
+  enemies: Enemy[];
+  enemyEnabled: boolean;
+  capturedBy?: EnemyType;
 }
 
 export interface BestTime {
