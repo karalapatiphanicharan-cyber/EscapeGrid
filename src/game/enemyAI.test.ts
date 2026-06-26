@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getValidMoves, getBFSMove, getGreedyMove } from './enemyAI';
+import { getValidMoves, getBFSMove, getGreedyMove, getRandomMove } from './enemyAI';
 import { Maze, Cell } from './types';
 
 const createMockMaze = (width: number, height: number): Maze => {
@@ -36,15 +36,21 @@ describe('enemyAI', () => {
     expect(moves.length).toBe(2);
   });
 
-  it('BFS finds the shortest path', () => {
+  it('BFS finds the shortest path while avoiding the exit', () => {
     const maze = createMockMaze(3, 3);
-    // Create a path: (0,0) -> (1,0) -> (1,1) -> (1,2) -> (2,2)
+    // Exit is at (2,2)
+    // Path: (0,0) -> (1,0) -> (1,1) -> (1,2) -> (2,2)
+    // But exit is at (2,2), so it should avoid it if it's the target?
+    // Wait, if exit is the target, BFS should find it?
+    // Requirement says enemy must NEVER move onto the exit tile.
+
+    // Open path: (0,0)-(1,0), (1,0)-(1,1), (1,1)-(0,1)
     maze[0][0].walls.right = false; maze[0][1].walls.left = false;
     maze[0][1].walls.bottom = false; maze[1][1].walls.top = false;
-    maze[1][1].walls.bottom = false; maze[2][1].walls.top = false;
-    maze[2][1].walls.right = false; maze[2][2].walls.left = false;
+    maze[1][1].walls.left = false; maze[1][0].walls.right = false;
 
-    const nextMove = getBFSMove({ x: 0, y: 0 }, { x: 2, y: 2 }, maze);
+    // Target is (1,0)
+    const nextMove = getBFSMove({ x: 0, y: 0 }, { x: 1, y: 0 }, maze);
     expect(nextMove).toEqual({ x: 1, y: 0 });
   });
 
@@ -62,5 +68,28 @@ describe('enemyAI', () => {
     expect([{ x: 1, y: 0 }, { x: 0, y: 1 }]).toContainEqual(nextMove);
 
     spy.mockRestore();
+  });
+
+  it('Random move avoids immediate reversal', () => {
+    const maze = createMockMaze(3, 3);
+    // Path: (0,0)-(1,0)-(2,0)
+    maze[0][0].walls.right = false; maze[0][1].walls.left = false;
+    maze[0][1].walls.right = false; maze[0][2].walls.left = false;
+
+    // Current: (1,0), Prev: (0,0). Should move to (2,0)
+    const nextMove = getRandomMove({ x: 1, y: 0 }, maze, { x: 0, y: 0 });
+    expect(nextMove).toEqual({ x: 2, y: 0 });
+  });
+
+  it('Enemies never move onto the exit', () => {
+    const maze = createMockMaze(3, 3);
+    // Exit is at (2,2)
+    // Path: (1,2)-(2,2)
+    maze[2][1].walls.right = false; maze[2][2].walls.left = false;
+
+    // Enemy at (1,2) should not be able to move to (2,2)
+    const moves = getValidMoves({ x: 1, y: 2 }, maze, [{ x: 2, y: 2 }]);
+    expect(moves).not.toContainEqual({ x: 2, y: 2 });
+    expect(moves.length).toBe(0);
   });
 });

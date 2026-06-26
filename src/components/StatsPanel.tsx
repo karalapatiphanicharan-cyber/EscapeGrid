@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { clsx } from 'clsx';
 import { Difficulty, BestTime } from '../game/types';
 import { formatTime } from '../utils/helpers';
 import { Timer, Footprints, Trophy, Eye, EyeOff, Pause, Play } from 'lucide-react';
@@ -107,5 +108,4 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ time, moves, difficulty, bestTi
   );
 };
 
-import { clsx } from 'clsx';
 export default StatsPanel;

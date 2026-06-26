@@ -1,4 +1,5 @@
 import React from 'react';
+import { clsx } from 'clsx';
 import { Difficulty } from '../game/types';
 import { DIFFICULTIES } from '../game/constants';
 import Button from './Button';
@@ -70,5 +71,4 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   );
 };
 
-import { clsx } from 'clsx';
 export default ControlPanel;
