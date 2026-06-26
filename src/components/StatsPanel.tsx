@@ -91,6 +91,20 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ time, moves, difficulty, bestTi
                 <span className="text-lg font-bold font-mono text-slate-400">{bestTime.moves} MV</span>
               </div>
             </div>
+            {bestTime.score !== undefined && (
+              <div className="flex justify-between items-center pt-2 border-t border-slate-800/20">
+                 <div className="flex flex-col">
+                    <span className="text-[8px] font-mono text-slate-500 uppercase tracking-widest">Max Credits</span>
+                    <span className="text-sm font-bold font-mono text-amber-500">{bestTime.score.toLocaleString()}</span>
+                 </div>
+                 {bestTime.coinsCollected !== undefined && (
+                   <div className="flex flex-col items-end">
+                      <span className="text-[8px] font-mono text-slate-500 uppercase tracking-widest">Harvested</span>
+                      <span className="text-sm font-bold font-mono text-slate-300">{bestTime.coinsCollected}</span>
+                   </div>
+                 )}
+              </div>
+            )}
             <div className="pt-2 border-t border-slate-800/30">
                <span className="text-[8px] font-mono text-slate-600 uppercase tracking-widest">
                  Last Sync: {new Date(bestTime.date).toLocaleDateString()}

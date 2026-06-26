@@ -17,9 +17,22 @@ export const saveBestTime = (newBest: BestTime) => {
   const existingIndex = currentBests.findIndex((b) => b.difficulty === newBest.difficulty);
 
   if (existingIndex > -1) {
-    if (newBest.time < currentBests[existingIndex].time) {
-      currentBests[existingIndex] = newBest;
+    const existing = currentBests[existingIndex];
+    // Keep best time
+    if (newBest.time < existing.time) {
+      existing.time = newBest.time;
+      existing.moves = newBest.moves;
+      existing.date = newBest.date;
     }
+    // Keep high score
+    if (newBest.score !== undefined && (existing.score === undefined || newBest.score > existing.score)) {
+      existing.score = newBest.score;
+    }
+    // Keep most coins
+    if (newBest.coins !== undefined && (existing.coins === undefined || newBest.coins > existing.coins)) {
+      existing.coins = newBest.coins;
+    }
+    currentBests[existingIndex] = existing;
   } else {
     currentBests.push(newBest);
   }
