@@ -10,9 +10,20 @@ interface MazeCanvasProps {
   coins: Coin[];
   powerUps: PowerUp[];
   activePowerUps: ActivePowerUp[];
+  assistantPath: Position[];
+  assistantType: 'hint' | 'full' | null;
 }
 
-const MazeCanvas: React.FC<MazeCanvasProps> = ({ maze, playerPosition, enemies, coins, powerUps, activePowerUps }) => {
+const MazeCanvas: React.FC<MazeCanvasProps> = ({
+  maze,
+  playerPosition,
+  enemies,
+  coins,
+  powerUps,
+  activePowerUps,
+  assistantPath,
+  assistantType
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [animationFrame, setAnimationFrame] = useState(0);
@@ -46,6 +57,36 @@ const MazeCanvas: React.FC<MazeCanvasProps> = ({ maze, playerPosition, enemies, 
     // Clear canvas
     ctx.fillStyle = COLORS.background;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw assistant path
+    if (assistantPath.length > 0) {
+      const pathColor = assistantType === 'hint' ? 'rgba(34, 211, 238, 0.4)' : 'rgba(168, 85, 247, 0.3)';
+      const glowColor = assistantType === 'hint' ? '#22d3ee' : '#a855f7';
+
+      assistantPath.forEach((pos, index) => {
+        const ax = pos.x * cellSize;
+        const ay = pos.y * cellSize;
+        const opacity = assistantType === 'hint' ? 1 : Math.max(0.1, 1 - (index / assistantPath.length));
+
+        ctx.save();
+        ctx.fillStyle = pathColor;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = glowColor;
+        ctx.globalAlpha = opacity;
+
+        // Animated pulse for path
+        const pulse = Math.sin(animationFrame * 0.1 + index * 0.5) * 0.2 + 0.8;
+        const rectSize = cellSize * 0.6 * pulse;
+
+        ctx.fillRect(
+          ax + (cellSize - rectSize) / 2,
+          ay + (cellSize - rectSize) / 2,
+          rectSize,
+          rectSize
+        );
+        ctx.restore();
+      });
+    }
 
     // Draw power-ups
     powerUps.forEach(pu => {
@@ -273,7 +314,7 @@ const MazeCanvas: React.FC<MazeCanvasProps> = ({ maze, playerPosition, enemies, 
 
     ctx.restore();
 
-  }, [maze, playerPosition, enemies, coins, powerUps, activePowerUps, animationFrame]);
+  }, [maze, playerPosition, enemies, coins, powerUps, activePowerUps, assistantPath, assistantType, animationFrame]);
 
   return (
     <div

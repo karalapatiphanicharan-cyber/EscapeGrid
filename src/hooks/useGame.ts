@@ -1,15 +1,17 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Difficulty, GameState, Position, Maze, Enemy, EnemyType, EnemyMode, EnemyState, Coin, PowerUp, ActivePowerUp } from '../game/types';
 import { generateMaze, validateMaze } from '../game/mazeGenerator';
-import { DIFFICULTIES, ENEMY_CONFIG, SCORING, POWER_UP_CONFIG } from '../game/constants';
+import { DIFFICULTIES, ENEMY_CONFIG, SCORING, POWER_UP_CONFIG, AI_ASSIST_CONFIG } from '../game/constants';
 import { spawnCoins, validateCoinsReachability } from '../game/coinLogic';
 import { spawnPowerUps, validatePowerUpsReachability } from '../game/powerUpLogic';
+import { findShortestPath } from '../game/pathfinder';
 import { saveBestTime, getBestTimeForDifficulty } from '../utils/storage';
 import { getNextEnemyPosition } from '../game/enemyAI';
 
 const ENEMY_ENABLED_KEY = 'escape_grid_enemy_enabled';
 const COINS_ENABLED_KEY = 'escape_grid_coins_enabled';
 const POWERUPS_ENABLED_KEY = 'escape_grid_powerups_enabled';
+const AI_ASSIST_ENABLED_KEY = 'escape_grid_ai_assist_enabled';
 const SAFE_SPAWN_DISTANCE = 6;
 
 export const useGame = (initialDifficulty: Difficulty = 'easy') => {
@@ -25,6 +27,11 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
 
   const [powerUpsEnabled, setPowerUpsEnabled] = useState(() => {
     const saved = localStorage.getItem(POWERUPS_ENABLED_KEY);
+    return saved !== null ? JSON.parse(saved) : false;
+  });
+
+  const [aiAssistEnabled, setAiAssistEnabled] = useState(() => {
+    const saved = localStorage.getItem(AI_ASSIST_ENABLED_KEY);
     return saved !== null ? JSON.parse(saved) : false;
   });
 
@@ -113,10 +120,14 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
       coins: [],
       powerUps: [],
       activePowerUps: [],
+      assistantPath: [],
+      assistantType: null,
+      assistantEndTime: null,
       score: 0,
       enemyEnabled,
       coinsEnabled,
       powerUpsEnabled,
+      aiAssistEnabled,
       gameId: Math.random().toString(36).substring(7),
     };
   });
@@ -199,10 +210,14 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
         coins,
         powerUps,
         activePowerUps: [],
+        assistantPath: [],
+        assistantType: null,
+        assistantEndTime: null,
         score: 0,
         enemyEnabled,
         coinsEnabled,
         powerUpsEnabled,
+        aiAssistEnabled,
         gameId: Math.random().toString(36).substring(7),
       });
     }
@@ -242,6 +257,9 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
         coins: newCoins,
         powerUps: newPowerUps,
         activePowerUps: [],
+        assistantPath: [],
+        assistantType: null,
+        assistantEndTime: null,
         score: 0,
         gameId: Math.random().toString(36).substring(7),
       };
@@ -271,6 +289,48 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
         activePowerUps: [],
     }));
   }, [powerUpsEnabled]);
+
+  const toggleAIAssist = useCallback(() => {
+    const newVal = !aiAssistEnabled;
+    setAiAssistEnabled(newVal);
+    localStorage.setItem(AI_ASSIST_ENABLED_KEY, JSON.stringify(newVal));
+    setGameState(prev => ({
+        ...prev,
+        aiAssistEnabled: newVal,
+        assistantPath: [],
+        assistantType: null,
+        assistantEndTime: null,
+    }));
+  }, [aiAssistEnabled]);
+
+  const requestHint = useCallback(() => {
+    if (!aiAssistEnabled || gameState.status !== 'playing') return;
+
+    const exitPos = { x: gameState.maze.length - 1, y: gameState.maze.length - 1 };
+    const fullPath = findShortestPath(gameState.maze, gameState.playerPosition, exitPos);
+    const hintPath = fullPath.slice(0, AI_ASSIST_CONFIG.HINT_LENGTH);
+
+    setGameState(prev => ({
+        ...prev,
+        assistantPath: hintPath,
+        assistantType: 'hint',
+        assistantEndTime: Date.now() + AI_ASSIST_CONFIG.HINT_DURATION
+    }));
+  }, [aiAssistEnabled, gameState.status, gameState.maze, gameState.playerPosition]);
+
+  const requestFullPath = useCallback(() => {
+    if (!aiAssistEnabled || gameState.status !== 'playing') return;
+
+    const exitPos = { x: gameState.maze.length - 1, y: gameState.maze.length - 1 };
+    const fullPath = findShortestPath(gameState.maze, gameState.playerPosition, exitPos);
+
+    setGameState(prev => ({
+        ...prev,
+        assistantPath: fullPath,
+        assistantType: 'full',
+        assistantEndTime: Date.now() + AI_ASSIST_CONFIG.FULL_PATH_DURATION
+    }));
+  }, [aiAssistEnabled, gameState.status, gameState.maze, gameState.playerPosition]);
 
   const toggleEnemySystem = useCallback(() => {
     const newVal = !enemyEnabled;
@@ -424,21 +484,43 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
     });
   }, [gameState.status]);
 
-  // Power-up expiration logic
+  // Expiration logic for power-ups and AI assistant
   useEffect(() => {
-    if (gameState.status !== 'playing' || gameState.activePowerUps.length === 0) return;
+    if (gameState.status !== 'playing') return;
 
     const interval = setInterval(() => {
         setGameState(prev => {
             const now = Date.now();
-            const filtered = prev.activePowerUps.filter(ap => ap.endTime > now);
-            if (filtered.length === prev.activePowerUps.length) return prev;
-            return { ...prev, activePowerUps: filtered };
+            let changed = false;
+
+            const filteredPowerUps = prev.activePowerUps.filter(ap => ap.endTime > now);
+            if (filteredPowerUps.length !== prev.activePowerUps.length) changed = true;
+
+            let newAssistantPath = prev.assistantPath;
+            let newAssistantType = prev.assistantType;
+            let newAssistantEndTime = prev.assistantEndTime;
+
+            if (prev.assistantEndTime && now > prev.assistantEndTime) {
+                newAssistantPath = [];
+                newAssistantType = null;
+                newAssistantEndTime = null;
+                changed = true;
+            }
+
+            if (!changed) return prev;
+
+            return {
+                ...prev,
+                activePowerUps: filteredPowerUps,
+                assistantPath: newAssistantPath,
+                assistantType: newAssistantType,
+                assistantEndTime: newAssistantEndTime
+            };
         });
     }, 100);
 
     return () => clearInterval(interval);
-  }, [gameState.status, gameState.activePowerUps.length]);
+  }, [gameState.status]);
 
   // Enemy movement logic
   useEffect(() => {
@@ -529,11 +611,15 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
     enemyEnabled,
     coinsEnabled,
     powerUpsEnabled,
+    aiAssistEnabled,
     startNewGame,
     restartGame,
     movePlayer: throttledMovePlayer,
     toggleEnemySystem,
     toggleCoinSystem,
     togglePowerUpSystem,
+    toggleAIAssist,
+    requestHint,
+    requestFullPath,
   };
 };
