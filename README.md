@@ -34,13 +34,6 @@
 
 ---
 
-## 📸 Screenshots
-
-| System Controls |
-| :---: | :---: |
- | ![Controls](./screenshots/gameplay.png) |
-
----
 
 ## 🛠 Tech Stack
 
