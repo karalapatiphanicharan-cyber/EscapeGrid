@@ -12,7 +12,7 @@ export const DIFFICULTIES: Record<Difficulty, { size: number; label: string; ene
     enemyCount: 1,
   },
   hard: {
-    size: 35,
+    size: 28,
     label: 'Hard',
     enemyCount: 3,
   },
