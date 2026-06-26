@@ -91,3 +91,8 @@ export const AI_ASSIST_CONFIG = {
   FULL_PATH_DURATION: 4000,
   HINT_LENGTH: 5,
 };
+
+export const FOG_CONFIG = {
+  RADIUS: 4,
+  EXPLORED_OPACITY: 0.25,
+};

@@ -12,6 +12,7 @@ const ENEMY_ENABLED_KEY = 'escape_grid_enemy_enabled';
 const COINS_ENABLED_KEY = 'escape_grid_coins_enabled';
 const POWERUPS_ENABLED_KEY = 'escape_grid_powerups_enabled';
 const AI_ASSIST_ENABLED_KEY = 'escape_grid_ai_assist_enabled';
+const FOG_OF_WAR_ENABLED_KEY = 'escape_grid_fog_of_war_enabled';
 const SAFE_SPAWN_DISTANCE = 6;
 
 export const useGame = (initialDifficulty: Difficulty = 'easy') => {
@@ -32,6 +33,11 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
 
   const [aiAssistEnabled, setAiAssistEnabled] = useState(() => {
     const saved = localStorage.getItem(AI_ASSIST_ENABLED_KEY);
+    return saved !== null ? JSON.parse(saved) : false;
+  });
+
+  const [fogOfWarEnabled, setFogOfWarEnabled] = useState(() => {
+    const saved = localStorage.getItem(FOG_OF_WAR_ENABLED_KEY);
     return saved !== null ? JSON.parse(saved) : false;
   });
 
@@ -123,11 +129,13 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
       assistantPath: [],
       assistantType: null,
       assistantEndTime: null,
+      exploredCells: new Set<string>([`${playerPos.x},${playerPos.y}`]),
       score: 0,
       enemyEnabled,
       coinsEnabled,
       powerUpsEnabled,
       aiAssistEnabled,
+      fogOfWarEnabled: initialDifficulty === 'hard' ? false : fogOfWarEnabled,
       gameId: Math.random().toString(36).substring(7),
     };
   });
@@ -213,11 +221,13 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
         assistantPath: [],
         assistantType: null,
         assistantEndTime: null,
+        exploredCells: new Set<string>([`${playerPos.x},${playerPos.y}`]),
         score: 0,
         enemyEnabled,
         coinsEnabled,
         powerUpsEnabled,
         aiAssistEnabled,
+        fogOfWarEnabled: difficulty === 'hard' ? false : fogOfWarEnabled,
         gameId: Math.random().toString(36).substring(7),
       });
     }
@@ -260,6 +270,7 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
         assistantPath: [],
         assistantType: null,
         assistantEndTime: null,
+        exploredCells: new Set<string>(['0,0']),
         score: 0,
         gameId: Math.random().toString(36).substring(7),
       };
@@ -302,6 +313,17 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
         assistantEndTime: null,
     }));
   }, [aiAssistEnabled]);
+
+  const toggleFogOfWar = useCallback(() => {
+    if (gameState.difficulty === 'hard') return;
+    const newVal = !fogOfWarEnabled;
+    setFogOfWarEnabled(newVal);
+    localStorage.setItem(FOG_OF_WAR_ENABLED_KEY, JSON.stringify(newVal));
+    setGameState(prev => ({
+        ...prev,
+        fogOfWarEnabled: newVal,
+    }));
+  }, [fogOfWarEnabled, gameState.difficulty]);
 
   const requestHint = useCallback(() => {
     if (!aiAssistEnabled || gameState.status !== 'playing') return;
@@ -373,6 +395,13 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
       if (newX === x && newY === y) return prev;
 
       const newPosition = { x: newX, y: newY };
+
+      // Update explored cells
+      let newExplored = prev.exploredCells;
+      if (prev.fogOfWarEnabled) {
+          newExplored = new Set(prev.exploredCells);
+          newExplored.add(`${newX},${newY}`);
+      }
 
       // Check collision BEFORE moving (if enemy is already there)
       const collision = prev.enemies.find(e => e.position.x === newX && e.position.y === newY);
@@ -479,6 +508,7 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
         coins: updatedCoins,
         powerUps: updatedPowerUps,
         activePowerUps: newActivePowerUps,
+        exploredCells: newExplored,
         score: newScore,
       };
     });
@@ -612,6 +642,7 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
     coinsEnabled,
     powerUpsEnabled,
     aiAssistEnabled,
+    fogOfWarEnabled,
     startNewGame,
     restartGame,
     movePlayer: throttledMovePlayer,
@@ -619,6 +650,7 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
     toggleCoinSystem,
     togglePowerUpSystem,
     toggleAIAssist,
+    toggleFogOfWar,
     requestHint,
     requestFullPath,
   };

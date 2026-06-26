@@ -71,11 +71,13 @@ export interface GameState {
   assistantPath: Position[];
   assistantType: 'hint' | 'full' | null;
   assistantEndTime: number | null;
+  exploredCells: Set<string>;
   score: number;
   enemyEnabled: boolean;
   coinsEnabled: boolean;
   powerUpsEnabled: boolean;
   aiAssistEnabled: boolean;
+  fogOfWarEnabled: boolean;
   gameId: string;
   capturedBy?: EnemyType;
 }

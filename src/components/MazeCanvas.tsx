@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Maze, Position, Enemy, Coin, PowerUp, ActivePowerUp } from '../game/types';
-import { COLORS, WALL_THICKNESS } from '../game/constants';
+import { COLORS, WALL_THICKNESS, FOG_CONFIG } from '../game/constants';
 import { Shield, Snowflake, Zap } from 'lucide-react';
 
 interface MazeCanvasProps {
@@ -12,6 +12,8 @@ interface MazeCanvasProps {
   activePowerUps: ActivePowerUp[];
   assistantPath: Position[];
   assistantType: 'hint' | 'full' | null;
+  fogOfWarEnabled: boolean;
+  exploredCells: Set<string>;
 }
 
 const MazeCanvas: React.FC<MazeCanvasProps> = ({
@@ -22,7 +24,9 @@ const MazeCanvas: React.FC<MazeCanvasProps> = ({
   powerUps,
   activePowerUps,
   assistantPath,
-  assistantType
+  assistantType,
+  fogOfWarEnabled,
+  exploredCells
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -58,12 +62,25 @@ const MazeCanvas: React.FC<MazeCanvasProps> = ({
     ctx.fillStyle = COLORS.background;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    const isVisible = (x: number, y: number) => {
+        if (!fogOfWarEnabled) return true;
+        const dist = Math.abs(x - playerPosition.x) + Math.abs(y - playerPosition.y);
+        return dist <= FOG_CONFIG.RADIUS;
+    };
+
+    const isExplored = (x: number, y: number) => {
+        if (!fogOfWarEnabled) return true;
+        return exploredCells.has(`${x},${y}`);
+    };
+
     // Draw assistant path
     if (assistantPath.length > 0) {
       const pathColor = assistantType === 'hint' ? 'rgba(34, 211, 238, 0.4)' : 'rgba(168, 85, 247, 0.3)';
       const glowColor = assistantType === 'hint' ? '#22d3ee' : '#a855f7';
 
       assistantPath.forEach((pos, index) => {
+        if (fogOfWarEnabled && !isExplored(pos.x, pos.y)) return;
+
         const ax = pos.x * cellSize;
         const ay = pos.y * cellSize;
         const opacity = assistantType === 'hint' ? 1 : Math.max(0.1, 1 - (index / assistantPath.length));
@@ -90,7 +107,7 @@ const MazeCanvas: React.FC<MazeCanvasProps> = ({
 
     // Draw power-ups
     powerUps.forEach(pu => {
-      if (pu.collected) return;
+      if (pu.collected || !isExplored(pu.position.x, pu.position.y)) return;
       const px = pu.position.x * cellSize;
       const py = pu.position.y * cellSize;
       const pulse = Math.sin(animationFrame * 0.1) * 2 + 5;
@@ -149,7 +166,7 @@ const MazeCanvas: React.FC<MazeCanvasProps> = ({
 
     // Draw coins
     coins.forEach(coin => {
-      if (coin.collected) return;
+      if (coin.collected || !isExplored(coin.position.x, coin.position.y)) return;
       const cx = coin.position.x * cellSize;
       const cy = coin.position.y * cellSize;
       const coinPulse = Math.sin(animationFrame * 0.15) * 2 + 5;
@@ -217,7 +234,7 @@ const MazeCanvas: React.FC<MazeCanvasProps> = ({
         }
 
         // Draw exit portal
-        if (cell.isExit) {
+        if (cell.isExit && isExplored(x, y)) {
           const pulse = Math.sin(animationFrame * 0.1) * 3 + 7;
           ctx.save();
           ctx.translate(px + cellSize / 2, py + cellSize / 2);
@@ -246,6 +263,7 @@ const MazeCanvas: React.FC<MazeCanvasProps> = ({
 
     // Draw enemies
     enemies.forEach(enemy => {
+        if (!isVisible(enemy.position.x, enemy.position.y)) return;
         const ex = enemy.position.x * cellSize;
         const ey = enemy.position.y * cellSize;
         const enemyPulse = Math.sin(animationFrame * 0.15) * 4 + 10;
@@ -314,7 +332,25 @@ const MazeCanvas: React.FC<MazeCanvasProps> = ({
 
     ctx.restore();
 
-  }, [maze, playerPosition, enemies, coins, powerUps, activePowerUps, assistantPath, assistantType, animationFrame]);
+    // Draw Fog Overlay
+    if (fogOfWarEnabled) {
+      maze.forEach((row, y) => {
+        row.forEach((_, x) => {
+          const visible = isVisible(x, y);
+          const explored = isExplored(x, y);
+
+          if (!visible) {
+            ctx.save();
+            ctx.fillStyle = COLORS.background;
+            ctx.globalAlpha = explored ? FOG_CONFIG.EXPLORED_OPACITY : 1.0;
+            ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+            ctx.restore();
+          }
+        });
+      });
+    }
+
+  }, [maze, playerPosition, enemies, coins, powerUps, activePowerUps, assistantPath, assistantType, fogOfWarEnabled, exploredCells, animationFrame]);
 
   return (
     <div
