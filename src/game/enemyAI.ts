@@ -2,10 +2,9 @@ import { Position, Maze, EnemyMode } from './types';
 
 /**
  * Returns valid adjacent positions while respecting walls.
- * Optionally excludes specific positions (e.g., the exit tile).
+ * Optionally excludes specific positions (e.g., the exit tile or other enemies).
  */
 export const getValidMoves = (pos: Position, maze: Maze, exclude: Position[] = []): Position[] => {
-  const moves: Position[] = [];
   const cell = maze[pos.y][pos.x];
 
   const candidates: Position[] = [];
@@ -36,10 +35,7 @@ const getExitPosition = (maze: Maze): Position | null => {
  * 1. Never enters the exit tile.
  * 2. Avoids immediate reversal (backtracking) unless trapped.
  */
-export const getRandomMove = (pos: Position, maze: Maze, prevPos?: Position): Position => {
-  const exitPos = getExitPosition(maze);
-  const exclude = exitPos ? [exitPos] : [];
-
+export const getRandomMove = (pos: Position, maze: Maze, exclude: Position[], prevPos?: Position): Position => {
   const allMoves = getValidMoves(pos, maze, exclude);
   if (allMoves.length === 0) return pos;
 
@@ -53,12 +49,9 @@ export const getRandomMove = (pos: Position, maze: Maze, prevPos?: Position): Po
 };
 
 /**
- * Greedy movement that prioritizes distance to player but respects the forbidden exit tile.
+ * Greedy movement that prioritizes distance to player but respects forbidden tiles.
  */
-export const getGreedyMove = (current: Position, target: Position, maze: Maze): Position => {
-  const exitPos = getExitPosition(maze);
-  const exclude = exitPos ? [exitPos] : [];
-
+export const getGreedyMove = (current: Position, target: Position, maze: Maze, exclude: Position[]): Position => {
   const moves = getValidMoves(current, maze, exclude);
   if (moves.length === 0) return current;
 
@@ -73,12 +66,9 @@ export const getGreedyMove = (current: Position, target: Position, maze: Maze): 
 };
 
 /**
- * BFS movement that finds the shortest path while respecting walls and forbidden exit tile.
+ * BFS movement that finds the shortest path while respecting walls and forbidden tiles.
  */
-export const getBFSMove = (start: Position, target: Position, maze: Maze): Position => {
-  const exitPos = getExitPosition(maze);
-  const excludeExit = exitPos ? [exitPos] : [];
-
+export const getBFSMove = (start: Position, target: Position, maze: Maze, exclude: Position[]): Position => {
   // BFS queue stores current position and the first move taken to get there
   const queue: { pos: Position; firstMove: Position | null }[] = [{ pos: start, firstMove: null }];
   const visited = new Set<string>();
@@ -91,7 +81,7 @@ export const getBFSMove = (start: Position, target: Position, maze: Maze): Posit
       return firstMove || start;
     }
 
-    const moves = getValidMoves(pos, maze, excludeExit);
+    const moves = getValidMoves(pos, maze, exclude);
     for (const move of moves) {
       const key = `${move.x},${move.y}`;
       if (!visited.has(key)) {
@@ -110,17 +100,21 @@ export const getBFSMove = (start: Position, target: Position, maze: Maze): Posit
 export const getNextEnemyPosition = (
   enemyPos: Position,
   prevEnemyPos: Position | undefined,
+  otherEnemyPositions: Position[],
   playerPos: Position,
   maze: Maze,
   mode: EnemyMode
 ): Position => {
+  const exitPos = getExitPosition(maze);
+  const forbidden = exitPos ? [exitPos, ...otherEnemyPositions] : otherEnemyPositions;
+
   switch (mode) {
     case 'random':
-      return getRandomMove(enemyPos, maze, prevEnemyPos);
+      return getRandomMove(enemyPos, maze, forbidden, prevEnemyPos);
     case 'tracking':
-      return getGreedyMove(enemyPos, playerPos, maze);
+      return getGreedyMove(enemyPos, playerPos, maze, forbidden);
     case 'bfs-hunter':
-      return getBFSMove(enemyPos, playerPos, maze);
+      return getBFSMove(enemyPos, playerPos, maze, forbidden);
     default:
       return enemyPos;
   }
