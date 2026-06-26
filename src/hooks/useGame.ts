@@ -40,10 +40,12 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
 
         const distToPlayer = Math.abs(x - playerPos.x) + Math.abs(y - playerPos.y);
         const isExitAdjacent = Math.abs(x - exitPos.x) <= 1 && Math.abs(y - exitPos.y) <= 1;
+        const isPlayerAdjacent = Math.abs(x - playerPos.x) <= 1 && Math.abs(y - playerPos.y) <= 1;
 
         if (!occupied.has(`${x},${y}`) &&
             distToPlayer >= SAFE_SPAWN_DISTANCE &&
-            !isExitAdjacent) {
+            !isExitAdjacent &&
+            !isPlayerAdjacent) {
           found = true;
           break;
         }
@@ -98,52 +100,117 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
 
   const [bestTime, setBestTime] = useState(getBestTimeForDifficulty(initialDifficulty));
 
-  const startNewGame = useCallback((difficulty: Difficulty = gameState.difficulty) => {
-    const size = DIFFICULTIES[difficulty].size;
-    let maze = generateMaze(size);
-    let attempts = 0;
-    while(!validateMaze(maze) && attempts < 10) {
-        maze = generateMaze(size);
-        attempts++;
+  const validateGameSetup = useCallback((maze: Maze, playerPos: Position, enemies: Enemy[]): boolean => {
+    const exitPos = { x: maze.length - 1, y: maze.length - 1 };
+
+    // We already know maze is valid (has 3 paths if hard)
+    // Now we must ensure at least one path is not "blocked" by enemies at their start positions.
+    // We treat enemy positions as walls for this check.
+    const enemyPositions = new Set(enemies.map(e => `${e.position.x},${e.position.y}`));
+
+    const queue: Position[] = [playerPos];
+    const visited = new Set<string>();
+    visited.add(`${playerPos.x},${playerPos.y}`);
+
+    while (queue.length > 0) {
+      const pos = queue.shift()!;
+      if (pos.x === exitPos.x && pos.y === exitPos.y) return true;
+
+      const cell = maze[pos.y][pos.x];
+      const neighbors: Position[] = [];
+      if (!cell.walls.top) neighbors.push({ x: pos.x, y: pos.y - 1 });
+      if (!cell.walls.right) neighbors.push({ x: pos.x + 1, y: pos.y });
+      if (!cell.walls.bottom) neighbors.push({ x: pos.x, y: pos.y + 1 });
+      if (!cell.walls.left) neighbors.push({ x: pos.x - 1, y: pos.y });
+
+      for (const next of neighbors) {
+        const key = `${next.x},${next.y}`;
+        if (!visited.has(key) && !enemyPositions.has(key)) {
+          visited.add(key);
+          queue.push(next);
+        }
+      }
     }
 
-    const playerPos = { x: 0, y: 0 };
-    setGameState({
-      maze,
-      playerPosition: playerPos,
-      difficulty,
-      moves: 0,
-      status: 'playing',
-      startTime: Date.now(),
-      endTime: null,
-      enemies: spawnEnemies(maze, difficulty, playerPos),
-      enemyEnabled,
-    });
+    return false;
+  }, []);
+
+  const startNewGame = useCallback((difficulty: Difficulty = gameState.difficulty) => {
+    const size = DIFFICULTIES[difficulty].size;
+    let maze: Maze;
+    let playerPos: Position = { x: 0, y: 0 };
+    let enemies: Enemy[] = [];
+    let attempts = 0;
+    let valid = false;
+
+    while (!valid && attempts < 20) {
+      attempts++;
+      maze = generateMaze(size);
+      if (!validateMaze(maze)) continue;
+
+      enemies = spawnEnemies(maze, difficulty, playerPos);
+      if (enemyEnabled && !validateGameSetup(maze, playerPos, enemies)) continue;
+
+      valid = true;
+      setGameState({
+        maze,
+        playerPosition: playerPos,
+        difficulty,
+        moves: 0,
+        status: 'playing',
+        startTime: Date.now(),
+        endTime: null,
+        enemies,
+        enemyEnabled,
+      });
+    }
+
     setBestTime(getBestTimeForDifficulty(difficulty));
-  }, [gameState.difficulty, enemyEnabled, spawnEnemies]);
+  }, [gameState.difficulty, enemyEnabled, spawnEnemies, validateGameSetup]);
 
   const restartGame = useCallback(() => {
-    setGameState((prev) => ({
-      ...prev,
-      playerPosition: { x: 0, y: 0 },
-      moves: 0,
-      status: 'playing',
-      startTime: Date.now(),
-      endTime: null,
-      enemies: spawnEnemies(prev.maze, prev.difficulty, { x: 0, y: 0 }),
-    }));
-  }, [spawnEnemies]);
+    setGameState((prev) => {
+      let enemies = spawnEnemies(prev.maze, prev.difficulty, { x: 0, y: 0 });
+      let attempts = 0;
+      while (enemyEnabled && !validateGameSetup(prev.maze, { x: 0, y: 0 }, enemies) && attempts < 10) {
+        enemies = spawnEnemies(prev.maze, prev.difficulty, { x: 0, y: 0 });
+        attempts++;
+      }
+
+      return {
+        ...prev,
+        playerPosition: { x: 0, y: 0 },
+        moves: 0,
+        status: 'playing',
+        startTime: Date.now(),
+        endTime: null,
+        enemies,
+      };
+    });
+  }, [spawnEnemies, enemyEnabled, validateGameSetup]);
 
   const toggleEnemySystem = useCallback(() => {
     const newVal = !enemyEnabled;
     setEnemyEnabled(newVal);
     localStorage.setItem(ENEMY_ENABLED_KEY, JSON.stringify(newVal));
-    setGameState(prev => ({
-        ...prev,
-        enemyEnabled: newVal,
-        enemies: newVal ? spawnEnemies(prev.maze, prev.difficulty, prev.playerPosition) : []
-    }));
-  }, [enemyEnabled, spawnEnemies]);
+    setGameState(prev => {
+        let enemies: Enemy[] = [];
+        if (newVal) {
+            enemies = spawnEnemies(prev.maze, prev.difficulty, prev.playerPosition);
+            let attempts = 0;
+            while (!validateGameSetup(prev.maze, prev.playerPosition, enemies) && attempts < 10) {
+                enemies = spawnEnemies(prev.maze, prev.difficulty, prev.playerPosition);
+                attempts++;
+            }
+        }
+
+        return {
+            ...prev,
+            enemyEnabled: newVal,
+            enemies: enemies
+        };
+    });
+  }, [enemyEnabled, spawnEnemies, validateGameSetup]);
 
   const movePlayer = useCallback((direction: string) => {
     if (gameState.status !== 'playing') return;

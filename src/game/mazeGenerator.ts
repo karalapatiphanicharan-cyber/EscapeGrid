@@ -39,7 +39,9 @@ export const generateMaze = (size: number): Maze => {
   }
 
   // Post-processing: Add loops to ensure multiple routes
-  addLoops(maze, Math.floor(size / 2));
+  // For Hard mode (size >= 28), we want significantly more loops to ensure 3 paths
+  const loopCount = size >= 28 ? Math.floor(size * 1.5) : Math.floor(size / 2);
+  addLoops(maze, loopCount);
 
   return maze;
 };
@@ -52,7 +54,7 @@ const addLoops = (maze: Maze, count: number) => {
   let added = 0;
   let attempts = 0;
 
-  while (added < count && attempts < count * 5) {
+  while (added < count && attempts < count * 10) {
     attempts++;
     const x = Math.floor(Math.random() * (size - 2)) + 1;
     const y = Math.floor(Math.random() * (size - 2)) + 1;
@@ -96,33 +98,64 @@ export const validateMaze = (maze: Maze): boolean => {
   const path = findPath(start, exit, maze);
   if (!path) return false;
 
-  // 4. At least two unique routes exist from Player to Exit
-  // We check this by removing every edge from the first path found one by one
-  // and seeing if we can find an alternative path.
-  // Actually, we just need to find ONE edge whose removal doesn't break connectivity.
-  let hasAlternative = false;
-  for (let i = 0; i < path.length - 1; i++) {
-    const edgeStart = path[i];
-    const edgeEnd = path[i + 1];
+  // 4. At least THREE unique routes exist from Player to Exit for Hard mode
+  // For others, at least TWO.
+  const requiredPaths = size >= 28 ? 3 : 2;
 
-    const originalWallsStart = { ...maze[edgeStart.y][edgeStart.x].walls };
-    const originalWallsEnd = { ...maze[edgeEnd.y][edgeEnd.x].walls };
+  let foundPaths = 1;
+  const blockedEdges: { a: Position; b: Position }[] = [];
+  let currentPath = path;
 
-    blockEdge(edgeStart, edgeEnd, maze);
-    const altPath = findPath(start, exit, maze);
+  while (foundPaths < requiredPaths) {
+    let alternativeFound = false;
 
-    maze[edgeStart.y][edgeStart.x].walls = originalWallsStart;
-    maze[edgeEnd.y][edgeEnd.x].walls = originalWallsEnd;
+    // Try blocking each edge of the current path to find an alternative
+    for (let i = 0; i < currentPath.length - 1; i++) {
+      const edgeStart = currentPath[i];
+      const edgeEnd = currentPath[i + 1];
 
-    if (altPath) {
-      hasAlternative = true;
-      break;
+      // Temporarily block this edge
+      const originalWallsStart = { ...maze[edgeStart.y][edgeStart.x].walls };
+      const originalWallsEnd = { ...maze[edgeEnd.y][edgeEnd.x].walls };
+      blockEdge(edgeStart, edgeEnd, maze);
+
+      // Also block all previously confirmed "essential" edges for other paths
+      // to ensure this new path is truly independent.
+      // Note: We don't need full independence, just 3 distinct routes.
+      // But blocking the previous path's edges is a good way to find a truly different route.
+
+      const altPath = findPath(start, exit, maze);
+
+      // Restore walls
+      maze[edgeStart.y][edgeStart.x].walls = originalWallsStart;
+      maze[edgeEnd.y][edgeEnd.x].walls = originalWallsEnd;
+
+      if (altPath) {
+        foundPaths++;
+        currentPath = altPath;
+        alternativeFound = true;
+
+        // Block one edge of this path permanently (for this validation) to find the NEXT one
+        blockEdge(edgeStart, edgeEnd, maze);
+        blockedEdges.push({ a: edgeStart, b: edgeEnd });
+        break;
+      }
     }
+
+    if (!alternativeFound) break;
   }
 
-  if (!hasAlternative) return false;
+  // Restore all blocked edges
+  blockedEdges.forEach(({ a, b }) => {
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      if (dx === 1) { maze[a.y][a.x].walls.left = false; maze[b.y][b.x].walls.right = false; }
+      else if (dx === -1) { maze[a.y][a.x].walls.right = false; maze[b.y][b.x].walls.left = false; }
+      if (dy === 1) { maze[a.y][a.x].walls.top = false; maze[b.y][b.x].walls.bottom = false; }
+      else if (dy === -1) { maze[a.y][a.x].walls.bottom = false; maze[b.y][b.x].walls.top = false; }
+  });
 
-  return true;
+  return foundPaths >= requiredPaths;
 };
 
 const getUnvisitedNeighbors = (pos: Position, maze: Maze, size: number): Position[] => {

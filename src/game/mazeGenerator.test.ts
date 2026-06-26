@@ -15,9 +15,14 @@ describe('mazeGenerator', () => {
   });
 
   it('creates multiple routes', () => {
-      // For a 10x10 maze, it should easily have alternative paths
+      // For a 10x10 maze, it should easily have at least 2 paths
       const maze = generateMaze(10);
       expect(validateMaze(maze)).toBe(true);
-      // Further inspection of loops can be done by checking wall counts but validateMaze already checks for alt paths
+  });
+
+  it('enforces 3 paths for large mazes', () => {
+      // For a 28x28 maze, it should have at least 3 paths
+      const maze = generateMaze(28);
+      expect(validateMaze(maze)).toBe(true);
   });
 });
