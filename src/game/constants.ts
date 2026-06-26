@@ -9,7 +9,7 @@ export const DIFFICULTIES: Record<Difficulty, { size: number; label: string; ene
   medium: {
     size: 20,
     label: 'Medium',
-    enemyCount: 1,
+    enemyCount: 2,
   },
   hard: {
     size: 28,
@@ -35,15 +35,15 @@ export const COLORS = {
 
 export const ENEMY_CONFIG: Record<EnemyType, { speed: number; color: string }> = {
   scout: {
-    speed: 600,
+    speed: 800, // Slow for Easy
     color: COLORS.enemyScout,
   },
   hunter: {
-    speed: 400,
+    speed: 400, // Fast for Hard
     color: COLORS.enemyHunter,
   },
   sentinel: {
-    speed: 800,
+    speed: 600, // Medium for Medium
     color: COLORS.enemySentinel,
   },
 };

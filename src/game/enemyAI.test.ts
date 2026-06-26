@@ -50,7 +50,7 @@ describe('enemyAI', () => {
     maze[1][1].walls.left = false; maze[1][0].walls.right = false;
 
     // Target is (1,0)
-    const nextMove = getBFSMove({ x: 0, y: 0 }, { x: 1, y: 0 }, maze);
+    const nextMove = getBFSMove({ x: 0, y: 0 }, { x: 1, y: 0 }, maze, []);
     expect(nextMove).toEqual({ x: 1, y: 0 });
   });
 
@@ -63,7 +63,7 @@ describe('enemyAI', () => {
     // Mock Math.random to avoid the 20% random move in greedy
     const spy = vi.spyOn(Math, 'random').mockReturnValue(0.5);
 
-    const nextMove = getGreedyMove({ x: 0, y: 0 }, { x: 2, y: 2 }, maze);
+    const nextMove = getGreedyMove({ x: 0, y: 0 }, { x: 2, y: 2 }, maze, []);
     // Should choose either (1,0) or (0,1) as they are closer (dist 3) than (0,0) (dist 4)
     expect([{ x: 1, y: 0 }, { x: 0, y: 1 }]).toContainEqual(nextMove);
 
@@ -77,7 +77,7 @@ describe('enemyAI', () => {
     maze[0][1].walls.right = false; maze[0][2].walls.left = false;
 
     // Current: (1,0), Prev: (0,0). Should move to (2,0)
-    const nextMove = getRandomMove({ x: 1, y: 0 }, maze, { x: 0, y: 0 });
+    const nextMove = getRandomMove({ x: 1, y: 0 }, maze, [], { x: 0, y: 0 });
     expect(nextMove).toEqual({ x: 2, y: 0 });
   });
 

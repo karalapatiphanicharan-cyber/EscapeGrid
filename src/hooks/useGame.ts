@@ -55,7 +55,9 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
         occupied.add(`${x!},${y!}`);
         const type = difficulty === 'easy' ? 'scout' : types[i % types.length];
         let mode: EnemyMode = 'random';
-        if (difficulty === 'medium') mode = 'tracking';
+        if (difficulty === 'medium') {
+            mode = i === 0 ? 'tracking' : 'random';
+        }
         if (difficulty === 'hard') {
             if (type === 'hunter') mode = 'bfs-hunter';
             else if (type === 'sentinel') mode = 'tracking';
@@ -288,9 +290,14 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
                 const currentEnemy = prev.enemies.find(e => e.id === enemy.id);
                 if (!currentEnemy) return prev;
 
+                const otherEnemyPositions = prev.enemies
+                    .filter(e => e.id !== enemy.id)
+                    .map(e => e.position);
+
                 const newPos = getNextEnemyPosition(
                     currentEnemy.position,
                     currentEnemy.prevPosition,
+                    otherEnemyPositions,
                     prev.playerPosition,
                     prev.maze,
                     currentEnemy.mode

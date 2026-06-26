@@ -98,9 +98,13 @@ export const validateMaze = (maze: Maze): boolean => {
   const path = findPath(start, exit, maze);
   if (!path) return false;
 
-  // 4. At least THREE unique routes exist from Player to Exit for Hard mode
-  // For others, at least TWO.
-  const requiredPaths = size >= 28 ? 3 : 2;
+  // 4. Required alternate paths based on difficulty/size
+  // Easy (size 10) -> 2 paths
+  // Medium (size 20) -> 3 paths
+  // Hard (size 28) -> 4 paths
+  let requiredPaths = 2;
+  if (size >= 20) requiredPaths = 3;
+  if (size >= 28) requiredPaths = 4;
 
   let foundPaths = 1;
   const blockedEdges: { a: Position; b: Position }[] = [];
