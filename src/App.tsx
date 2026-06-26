@@ -10,6 +10,7 @@ import CoinSystemCard from './components/CoinSystemCard';
 import PowerUpSystemCard from './components/PowerUpSystemCard';
 import ActivePowerUpsCard from './components/ActivePowerUpsCard';
 import AIAssistCard from './components/AIAssistCard';
+import FogOfWarCard from './components/FogOfWarCard';
 import VictoryModal from './components/VictoryModal';
 import GameOverModal from './components/GameOverModal';
 import EnemyStatusCard from './components/EnemyStatusCard';
@@ -26,6 +27,7 @@ const App: React.FC = () => {
     coinsEnabled,
     powerUpsEnabled,
     aiAssistEnabled,
+    fogOfWarEnabled,
     startNewGame,
     restartGame,
     movePlayer,
@@ -33,6 +35,7 @@ const App: React.FC = () => {
     toggleCoinSystem,
     togglePowerUpSystem,
     toggleAIAssist,
+    toggleFogOfWar,
     requestHint,
     requestFullPath,
   } = useGame('easy');
@@ -105,6 +108,11 @@ const App: React.FC = () => {
             isGameActive={gameState.status === 'playing'}
             hasActivePath={gameState.assistantPath.length > 0}
           />
+          <FogOfWarCard
+            enabled={fogOfWarEnabled}
+            onToggle={toggleFogOfWar}
+            difficulty={gameState.difficulty}
+          />
           <EnemyStatusCard
             enemies={gameState.enemies}
             enabled={enemyEnabled}
@@ -132,6 +140,8 @@ const App: React.FC = () => {
             activePowerUps={gameState.activePowerUps}
             assistantPath={gameState.assistantPath}
             assistantType={gameState.assistantType}
+            fogOfWarEnabled={fogOfWarEnabled}
+            exploredCells={gameState.exploredCells}
           />
 
             <div className="mt-8 w-full max-w-md">
