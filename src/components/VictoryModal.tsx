@@ -8,6 +8,9 @@ interface VictoryModalProps {
   time: number;
   moves: number;
   difficulty: Difficulty;
+  score?: number;
+  coinsCollected?: number;
+  totalCoins?: number;
   onRestart: () => void;
   onNewMaze: () => void;
 }
@@ -16,6 +19,9 @@ const VictoryModal: React.FC<VictoryModalProps> = ({
   time,
   moves,
   difficulty,
+  score,
+  coinsCollected,
+  totalCoins,
   onRestart,
   onNewMaze,
 }) => {
@@ -39,15 +45,34 @@ const VictoryModal: React.FC<VictoryModalProps> = ({
             System Authorization Approved
           </p>
 
-          <div className="grid grid-cols-2 gap-6 w-full mb-12">
-            <div className="p-6 rounded-3xl bg-slate-800/30 border border-slate-700/50 group hover:border-cyan-500/30 transition-colors">
-              <span className="block text-[10px] font-mono text-slate-500 uppercase mb-2 tracking-widest">Duration</span>
-              <span className="text-3xl font-black font-mono text-cyan-400 tracking-tight">{formatTime(time)}</span>
+          <div className="grid grid-cols-2 gap-4 w-full mb-8">
+            <div className="p-4 rounded-3xl bg-slate-800/30 border border-slate-700/50 group hover:border-cyan-500/30 transition-colors">
+              <span className="block text-[8px] font-mono text-slate-500 uppercase mb-1 tracking-widest">Duration</span>
+              <span className="text-2xl font-black font-mono text-cyan-400 tracking-tight">{formatTime(time)}</span>
             </div>
-            <div className="p-6 rounded-3xl bg-slate-800/30 border border-slate-700/50 group hover:border-purple-500/30 transition-colors">
-              <span className="block text-[10px] font-mono text-slate-500 uppercase mb-2 tracking-widest">Accuracy</span>
-              <span className="text-3xl font-black font-mono text-purple-400 tracking-tight">{moves}</span>
+            <div className="p-4 rounded-3xl bg-slate-800/30 border border-slate-700/50 group hover:border-purple-500/30 transition-colors">
+              <span className="block text-[8px] font-mono text-slate-500 uppercase mb-1 tracking-widest">Accuracy</span>
+              <span className="text-2xl font-black font-mono text-purple-400 tracking-tight">{moves}</span>
             </div>
+            {score !== undefined && (
+              <div className="p-4 rounded-3xl bg-slate-800/30 border border-slate-700/50 group hover:border-amber-500/30 transition-colors col-span-2">
+                <div className="flex justify-between items-center px-2">
+                  <div className="text-left">
+                    <span className="block text-[8px] font-mono text-slate-500 uppercase mb-1 tracking-widest">Credits</span>
+                    <span className="text-3xl font-black font-mono text-amber-400 tracking-tight">{score.toLocaleString()}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="block text-[8px] font-mono text-slate-500 uppercase mb-1 tracking-widest">Energy</span>
+                    <span className="text-xl font-black font-mono text-slate-300 tracking-tight">{coinsCollected} / {totalCoins}</span>
+                  </div>
+                </div>
+                {coinsCollected === totalCoins && totalCoins !== 0 && (
+                   <div className="mt-2 text-[8px] font-mono text-amber-500 uppercase tracking-[0.3em] font-bold">
+                     ● FULL_EXTRACTION_BONUS_APPLIED ●
+                   </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-4 w-full">

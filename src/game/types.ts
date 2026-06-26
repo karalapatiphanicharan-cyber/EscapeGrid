@@ -36,6 +36,12 @@ export interface Enemy {
   color: string;
 }
 
+export interface Coin {
+  id: string;
+  position: Position;
+  collected: boolean;
+}
+
 export interface GameState {
   maze: Maze;
   playerPosition: Position;
@@ -45,7 +51,10 @@ export interface GameState {
   startTime: number | null;
   endTime: number | null;
   enemies: Enemy[];
+  coins: Coin[];
+  score: number;
   enemyEnabled: boolean;
+  gameId: string;
   capturedBy?: EnemyType;
 }
 
@@ -53,5 +62,7 @@ export interface BestTime {
   difficulty: Difficulty;
   time: number;
   moves: number;
+  score?: number;
+  coins?: number;
   date: string;
 }

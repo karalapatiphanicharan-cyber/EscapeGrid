@@ -1,14 +1,15 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Maze, Position, Enemy } from '../game/types';
+import { Maze, Position, Enemy, Coin } from '../game/types';
 import { COLORS, WALL_THICKNESS } from '../game/constants';
 
 interface MazeCanvasProps {
   maze: Maze;
   playerPosition: Position;
   enemies: Enemy[];
+  coins: Coin[];
 }
 
-const MazeCanvas: React.FC<MazeCanvasProps> = ({ maze, playerPosition, enemies }) => {
+const MazeCanvas: React.FC<MazeCanvasProps> = ({ maze, playerPosition, enemies, coins }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [animationFrame, setAnimationFrame] = useState(0);
@@ -42,6 +43,39 @@ const MazeCanvas: React.FC<MazeCanvasProps> = ({ maze, playerPosition, enemies }
     // Clear canvas
     ctx.fillStyle = COLORS.background;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw coins
+    coins.forEach(coin => {
+      if (coin.collected) return;
+      const cx = coin.position.x * cellSize;
+      const cy = coin.position.y * cellSize;
+      const coinPulse = Math.sin(animationFrame * 0.15) * 2 + 5;
+      const floatY = Math.sin(animationFrame * 0.05) * 2;
+
+      ctx.save();
+      ctx.translate(cx + cellSize / 2, cy + cellSize / 2 + floatY);
+
+      // Coin Glow
+      ctx.shadowBlur = coinPulse * 1.5;
+      ctx.shadowColor = COLORS.coin;
+      ctx.fillStyle = COLORS.coin;
+
+      // Rotating/pulsing orb
+      ctx.rotate(animationFrame * 0.04);
+      ctx.beginPath();
+      ctx.arc(0, 0, cellSize / 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Outer subtle ring
+      ctx.strokeStyle = COLORS.coin;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 2]);
+      ctx.beginPath();
+      ctx.arc(0, 0, cellSize / 4, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.restore();
+    });
 
     // Draw maze walls
     ctx.strokeStyle = COLORS.wall;
@@ -165,7 +199,7 @@ const MazeCanvas: React.FC<MazeCanvasProps> = ({ maze, playerPosition, enemies }
 
     ctx.restore();
 
-  }, [maze, playerPosition, enemies, animationFrame]);
+  }, [maze, playerPosition, enemies, coins, animationFrame]);
 
   return (
     <div

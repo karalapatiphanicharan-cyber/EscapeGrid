@@ -1,10 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import GameHeader from './components/GameHeader';
 import Sidebar from './components/Sidebar';
 import Background from './components/Background';
 import MazeCanvas from './components/MazeCanvas';
 import ControlPanel from './components/ControlPanel';
 import StatsPanel from './components/StatsPanel';
+import EnergyCacheCard from './components/EnergyCacheCard';
 import VictoryModal from './components/VictoryModal';
 import GameOverModal from './components/GameOverModal';
 import EnemyStatusCard from './components/EnemyStatusCard';
@@ -24,6 +25,16 @@ const App: React.FC = () => {
     toggleEnemySystem
   } = useGame('easy');
   const { time, resetTimer } = useTimer(gameState.status === 'playing');
+
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem('sidebar_collapsed');
+    if (saved !== null) return JSON.parse(saved);
+    return window.innerWidth < 1024;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sidebar_collapsed', JSON.stringify(isSidebarCollapsed));
+  }, [isSidebarCollapsed]);
 
   useKeyboard(movePlayer);
 
@@ -46,15 +57,20 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col h-screen max-h-screen overflow-hidden bg-slate-950 text-slate-200 font-mono relative">
       <Background />
-      <GameHeader />
+      <GameHeader onMenuClick={() => setIsSidebarCollapsed(false)} />
 
       <main className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
-        <Sidebar>
+        <Sidebar isCollapsed={isSidebarCollapsed} onToggle={setIsSidebarCollapsed}>
           <StatsPanel
             time={time}
             moves={gameState.moves}
             difficulty={gameState.difficulty}
             bestTime={bestTime}
+          />
+          <EnergyCacheCard
+            collected={gameState.coins.filter(c => c.collected).length}
+            total={gameState.coins.length}
+            score={gameState.score}
           />
           <EnemyStatusCard
             enemies={gameState.enemies}
@@ -78,6 +94,7 @@ const App: React.FC = () => {
               maze={gameState.maze}
               playerPosition={gameState.playerPosition}
               enemies={gameState.enemies}
+              coins={gameState.coins}
             />
 
             <div className="mt-8 w-full max-w-md">
@@ -103,6 +120,9 @@ const App: React.FC = () => {
           time={time}
           moves={gameState.moves}
           difficulty={gameState.difficulty}
+          score={gameState.score}
+          coinsCollected={gameState.coins.filter(c => c.collected).length}
+          totalCoins={gameState.coins.length}
           onRestart={handleRestart}
           onNewMaze={() => handleNewMaze(gameState.difficulty)}
         />

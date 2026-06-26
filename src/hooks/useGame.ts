@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Difficulty, GameState, Position, Maze, Enemy, EnemyType, EnemyMode, EnemyState } from '../game/types';
+import { Difficulty, GameState, Position, Maze, Enemy, EnemyType, EnemyMode, EnemyState, Coin } from '../game/types';
 import { generateMaze, validateMaze } from '../game/mazeGenerator';
-import { DIFFICULTIES, ENEMY_CONFIG } from '../game/constants';
+import { DIFFICULTIES, ENEMY_CONFIG, SCORING } from '../game/constants';
+import { spawnCoins, validateCoinsReachability } from '../game/coinLogic';
 import { saveBestTime, getBestTimeForDifficulty } from '../utils/storage';
 import { getNextEnemyPosition } from '../game/enemyAI';
 
@@ -96,7 +97,10 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
       startTime: null,
       endTime: null,
       enemies: [],
+      coins: [],
+      score: 0,
       enemyEnabled,
+      gameId: Math.random().toString(36).substring(7),
     };
   });
 
@@ -142,6 +146,7 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
     let maze: Maze;
     let playerPos: Position = { x: 0, y: 0 };
     let enemies: Enemy[] = [];
+    let coins: Coin[] = [];
     let attempts = 0;
     let valid = false;
 
@@ -153,6 +158,9 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
       enemies = spawnEnemies(maze, difficulty, playerPos);
       if (enemyEnabled && !validateGameSetup(maze, playerPos, enemies)) continue;
 
+      coins = spawnCoins(maze, difficulty, playerPos, enemies.map(e => e.position));
+      if (!validateCoinsReachability(maze, playerPos, coins)) continue;
+
       valid = true;
       setGameState({
         maze,
@@ -163,7 +171,10 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
         startTime: Date.now(),
         endTime: null,
         enemies,
+        coins,
+        score: 0,
         enemyEnabled,
+        gameId: Math.random().toString(36).substring(7),
       });
     }
 
@@ -179,6 +190,9 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
         attempts++;
       }
 
+      // Reset coins for restart
+      const newCoins = spawnCoins(prev.maze, prev.difficulty, { x: 0, y: 0 }, enemies.map(e => e.position));
+
       return {
         ...prev,
         playerPosition: { x: 0, y: 0 },
@@ -187,6 +201,9 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
         startTime: Date.now(),
         endTime: null,
         enemies,
+        coins: newCoins,
+        score: 0,
+        gameId: Math.random().toString(36).substring(7),
       };
     });
   }, [spawnEnemies, enemyEnabled, validateGameSetup]);
@@ -246,15 +263,35 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
           };
       }
 
+      // Check for coin collection
+      let newScore = prev.score;
+      const updatedCoins = prev.coins.map(coin => {
+          if (!coin.collected && coin.position.x === newX && coin.position.y === newY) {
+              newScore += SCORING.COIN_VALUE;
+              return { ...coin, collected: true };
+          }
+          return coin;
+      });
+
       const isWon = prev.maze[newY][newX].isExit;
 
       if (isWon) {
         const endTime = Date.now();
         const duration = endTime - (prev.startTime || endTime);
+
+        let finalScore = newScore + SCORING.EXIT_VALUE;
+        const totalCoins = prev.coins.length;
+        const collectedCoins = updatedCoins.filter(c => c.collected).length;
+        if (collectedCoins === totalCoins) {
+            finalScore += SCORING.PERFECT_BONUS;
+        }
+
         const bestTimeData = {
           difficulty: prev.difficulty,
           time: duration,
           moves: prev.moves + 1,
+          score: finalScore,
+          coins: collectedCoins,
           date: new Date().toISOString(),
         };
         saveBestTime(bestTimeData);
@@ -264,6 +301,8 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
           ...prev,
           playerPosition: newPosition,
           moves: prev.moves + 1,
+          coins: updatedCoins,
+          score: finalScore,
           status: 'won',
           endTime,
         };
@@ -273,6 +312,8 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
         ...prev,
         playerPosition: newPosition,
         moves: prev.moves + 1,
+        coins: updatedCoins,
+        score: newScore,
       };
     });
   }, [gameState.status]);
@@ -335,7 +376,7 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
     });
 
     return () => intervals.forEach(clearInterval);
-  }, [gameState.status, enemyEnabled, gameState.enemies.length]);
+  }, [gameState.gameId, gameState.status, enemyEnabled, gameState.enemies.length]);
 
   return {
     gameState,
