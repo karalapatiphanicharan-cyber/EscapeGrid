@@ -25,6 +25,20 @@ export type EnemyType = 'scout' | 'hunter' | 'sentinel';
 export type EnemyMode = 'random' | 'tracking' | 'bfs-hunter';
 export type EnemyState = 'searching' | 'tracking' | 'pursuing';
 
+export type PowerUpType = 'shield' | 'freeze' | 'speed';
+
+export interface PowerUp {
+  id: string;
+  type: PowerUpType;
+  position: Position;
+  collected: boolean;
+}
+
+export interface ActivePowerUp {
+  type: PowerUpType;
+  endTime: number;
+}
+
 export interface Enemy {
   id: string;
   type: EnemyType;
@@ -52,9 +66,12 @@ export interface GameState {
   endTime: number | null;
   enemies: Enemy[];
   coins: Coin[];
+  powerUps: PowerUp[];
+  activePowerUps: ActivePowerUp[];
   score: number;
   enemyEnabled: boolean;
   coinsEnabled: boolean;
+  powerUpsEnabled: boolean;
   gameId: string;
   capturedBy?: EnemyType;
 }

@@ -7,6 +7,8 @@ import ControlPanel from './components/ControlPanel';
 import StatsPanel from './components/StatsPanel';
 import EnergyCacheCard from './components/EnergyCacheCard';
 import CoinSystemCard from './components/CoinSystemCard';
+import PowerUpSystemCard from './components/PowerUpSystemCard';
+import ActivePowerUpsCard from './components/ActivePowerUpsCard';
 import VictoryModal from './components/VictoryModal';
 import GameOverModal from './components/GameOverModal';
 import EnemyStatusCard from './components/EnemyStatusCard';
@@ -21,11 +23,13 @@ const App: React.FC = () => {
     bestTime,
     enemyEnabled,
     coinsEnabled,
+    powerUpsEnabled,
     startNewGame,
     restartGame,
     movePlayer,
     toggleEnemySystem,
-    toggleCoinSystem
+    toggleCoinSystem,
+    togglePowerUpSystem
   } = useGame('easy');
   const { time, resetTimer } = useTimer(gameState.status === 'playing');
 
@@ -81,6 +85,13 @@ const App: React.FC = () => {
             enabled={coinsEnabled}
             onToggle={toggleCoinSystem}
           />
+          <PowerUpSystemCard
+            enabled={powerUpsEnabled}
+            onToggle={togglePowerUpSystem}
+          />
+          {powerUpsEnabled && (
+            <ActivePowerUpsCard activePowerUps={gameState.activePowerUps} />
+          )}
           <EnemyStatusCard
             enemies={gameState.enemies}
             enabled={enemyEnabled}
@@ -104,6 +115,8 @@ const App: React.FC = () => {
               playerPosition={gameState.playerPosition}
               enemies={gameState.enemies}
               coins={gameState.coins}
+            powerUps={gameState.powerUps}
+            activePowerUps={gameState.activePowerUps}
             />
 
             <div className="mt-8 w-full max-w-md">

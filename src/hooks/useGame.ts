@@ -1,13 +1,15 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Difficulty, GameState, Position, Maze, Enemy, EnemyType, EnemyMode, EnemyState, Coin } from '../game/types';
+import { Difficulty, GameState, Position, Maze, Enemy, EnemyType, EnemyMode, EnemyState, Coin, PowerUp, ActivePowerUp } from '../game/types';
 import { generateMaze, validateMaze } from '../game/mazeGenerator';
-import { DIFFICULTIES, ENEMY_CONFIG, SCORING } from '../game/constants';
+import { DIFFICULTIES, ENEMY_CONFIG, SCORING, POWER_UP_CONFIG } from '../game/constants';
 import { spawnCoins, validateCoinsReachability } from '../game/coinLogic';
+import { spawnPowerUps, validatePowerUpsReachability } from '../game/powerUpLogic';
 import { saveBestTime, getBestTimeForDifficulty } from '../utils/storage';
 import { getNextEnemyPosition } from '../game/enemyAI';
 
 const ENEMY_ENABLED_KEY = 'escape_grid_enemy_enabled';
 const COINS_ENABLED_KEY = 'escape_grid_coins_enabled';
+const POWERUPS_ENABLED_KEY = 'escape_grid_powerups_enabled';
 const SAFE_SPAWN_DISTANCE = 6;
 
 export const useGame = (initialDifficulty: Difficulty = 'easy') => {
@@ -19,6 +21,11 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
   const [coinsEnabled, setCoinsEnabled] = useState(() => {
     const saved = localStorage.getItem(COINS_ENABLED_KEY);
     return saved !== null ? JSON.parse(saved) : true;
+  });
+
+  const [powerUpsEnabled, setPowerUpsEnabled] = useState(() => {
+    const saved = localStorage.getItem(POWERUPS_ENABLED_KEY);
+    return saved !== null ? JSON.parse(saved) : false;
   });
 
   const spawnEnemies = useCallback((maze: Maze, difficulty: Difficulty, playerPos: Position): Enemy[] => {
@@ -104,9 +111,12 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
       endTime: null,
       enemies: [],
       coins: [],
+      powerUps: [],
+      activePowerUps: [],
       score: 0,
       enemyEnabled,
       coinsEnabled,
+      powerUpsEnabled,
       gameId: Math.random().toString(36).substring(7),
     };
   });
@@ -154,6 +164,7 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
     let playerPos: Position = { x: 0, y: 0 };
     let enemies: Enemy[] = [];
     let coins: Coin[] = [];
+    let powerUps: PowerUp[] = [];
     let attempts = 0;
     let valid = false;
 
@@ -170,6 +181,11 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
         if (!validateCoinsReachability(maze, playerPos, coins)) continue;
       }
 
+      if (powerUpsEnabled) {
+        powerUps = spawnPowerUps(maze, difficulty, playerPos, enemies.map(e => e.position), coins.map(c => c.position));
+        if (!validatePowerUpsReachability(maze, playerPos, powerUps)) continue;
+      }
+
       valid = true;
       setGameState({
         maze,
@@ -181,9 +197,12 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
         endTime: null,
         enemies,
         coins,
+        powerUps,
+        activePowerUps: [],
         score: 0,
         enemyEnabled,
         coinsEnabled,
+        powerUpsEnabled,
         gameId: Math.random().toString(36).substring(7),
       });
     }
@@ -206,6 +225,12 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
         newCoins = spawnCoins(prev.maze, prev.difficulty, { x: 0, y: 0 }, enemies.map(e => e.position));
       }
 
+      // Reset powerups for restart
+      let newPowerUps: PowerUp[] = [];
+      if (powerUpsEnabled) {
+        newPowerUps = spawnPowerUps(prev.maze, prev.difficulty, { x: 0, y: 0 }, enemies.map(e => e.position), newCoins.map(c => c.position));
+      }
+
       return {
         ...prev,
         playerPosition: { x: 0, y: 0 },
@@ -215,6 +240,8 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
         endTime: null,
         enemies,
         coins: newCoins,
+        powerUps: newPowerUps,
+        activePowerUps: [],
         score: 0,
         gameId: Math.random().toString(36).substring(7),
       };
@@ -229,9 +256,21 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
         ...prev,
         coinsEnabled: newVal,
         coins: newVal ? spawnCoins(prev.maze, prev.difficulty, prev.playerPosition, prev.enemies.map(e => e.position)) : [],
-        score: newVal ? prev.score : 0, // Reset score if disabling? Actually, user says disable logic.
+        score: newVal ? prev.score : 0,
     }));
   }, [coinsEnabled]);
+
+  const togglePowerUpSystem = useCallback(() => {
+    const newVal = !powerUpsEnabled;
+    setPowerUpsEnabled(newVal);
+    localStorage.setItem(POWERUPS_ENABLED_KEY, JSON.stringify(newVal));
+    setGameState(prev => ({
+        ...prev,
+        powerUpsEnabled: newVal,
+        powerUps: newVal ? spawnPowerUps(prev.maze, prev.difficulty, prev.playerPosition, prev.enemies.map(e => e.position), prev.coins.map(c => c.position)) : [],
+        activePowerUps: [],
+    }));
+  }, [powerUpsEnabled]);
 
   const toggleEnemySystem = useCallback(() => {
     const newVal = !enemyEnabled;
@@ -278,6 +317,16 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
       // Check collision BEFORE moving (if enemy is already there)
       const collision = prev.enemies.find(e => e.position.x === newX && e.position.y === newY);
       if (collision) {
+          const hasShield = prev.activePowerUps.some(ap => ap.type === 'shield');
+          if (hasShield) {
+              return {
+                  ...prev,
+                  playerPosition: newPosition,
+                  moves: prev.moves + 1,
+                  activePowerUps: prev.activePowerUps.filter(ap => ap.type !== 'shield'),
+              };
+          }
+
           return {
               ...prev,
               playerPosition: newPosition,
@@ -286,6 +335,32 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
               endTime: Date.now(),
               capturedBy: collision.type
           };
+      }
+
+      // Check for power-up collection
+      let newActivePowerUps = [...prev.activePowerUps];
+      let updatedPowerUps = prev.powerUps;
+
+      if (powerUpsEnabled) {
+        updatedPowerUps = prev.powerUps.map(pu => {
+            if (!pu.collected && pu.position.x === newX && pu.position.y === newY) {
+                const config = POWER_UP_CONFIG[pu.type];
+                if (pu.type === 'shield') {
+                    if (!newActivePowerUps.some(ap => ap.type === 'shield')) {
+                        newActivePowerUps.push({ type: 'shield', endTime: Infinity });
+                    }
+                } else {
+                    const existing = newActivePowerUps.find(ap => ap.type === pu.type);
+                    if (existing) {
+                        existing.endTime = Date.now() + config.duration;
+                    } else {
+                        newActivePowerUps.push({ type: pu.type, endTime: Date.now() + config.duration });
+                    }
+                }
+                return { ...pu, collected: true };
+            }
+            return pu;
+        });
       }
 
       // Check for coin collection
@@ -342,10 +417,28 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
         playerPosition: newPosition,
         moves: prev.moves + 1,
         coins: updatedCoins,
+        powerUps: updatedPowerUps,
+        activePowerUps: newActivePowerUps,
         score: newScore,
       };
     });
   }, [gameState.status]);
+
+  // Power-up expiration logic
+  useEffect(() => {
+    if (gameState.status !== 'playing' || gameState.activePowerUps.length === 0) return;
+
+    const interval = setInterval(() => {
+        setGameState(prev => {
+            const now = Date.now();
+            const filtered = prev.activePowerUps.filter(ap => ap.endTime > now);
+            if (filtered.length === prev.activePowerUps.length) return prev;
+            return { ...prev, activePowerUps: filtered };
+        });
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [gameState.status, gameState.activePowerUps.length]);
 
   // Enemy movement logic
   useEffect(() => {
@@ -355,6 +448,9 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
         return setInterval(() => {
             setGameState(prev => {
                 if (prev.status !== 'playing') return prev;
+
+                // Pause movement if frozen
+                if (prev.activePowerUps.some(ap => ap.type === 'freeze')) return prev;
 
                 // Find the latest version of this enemy in the current state
                 const currentEnemy = prev.enemies.find(e => e.id === enemy.id);
@@ -390,6 +486,15 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
 
                 // Check collision
                 if (newPos.x === prev.playerPosition.x && newPos.y === prev.playerPosition.y) {
+                    const hasShield = prev.activePowerUps.some(ap => ap.type === 'shield');
+                    if (hasShield) {
+                        return {
+                            ...prev,
+                            enemies: updatedEnemies,
+                            activePowerUps: prev.activePowerUps.filter(ap => ap.type !== 'shield'),
+                        };
+                    }
+
                     return {
                         ...prev,
                         enemies: updatedEnemies,
@@ -407,15 +512,28 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
     return () => intervals.forEach(clearInterval);
   }, [gameState.gameId, gameState.status, enemyEnabled, gameState.enemies.length]);
 
+  const lastMoveRef = useRef<number>(0);
+  const throttledMovePlayer = useCallback((direction: string) => {
+      const now = Date.now();
+      const hasSpeed = gameState.activePowerUps.some(ap => ap.type === 'speed');
+      const delay = hasSpeed ? 75 : 150;
+
+      if (now - lastMoveRef.current < delay) return;
+      lastMoveRef.current = now;
+      movePlayer(direction);
+  }, [movePlayer, gameState.activePowerUps]);
+
   return {
     gameState,
     bestTime,
     enemyEnabled,
     coinsEnabled,
+    powerUpsEnabled,
     startNewGame,
     restartGame,
-    movePlayer,
+    movePlayer: throttledMovePlayer,
     toggleEnemySystem,
     toggleCoinSystem,
+    togglePowerUpSystem,
   };
 };

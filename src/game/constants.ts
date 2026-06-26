@@ -1,23 +1,26 @@
 import { Difficulty, EnemyType } from './types';
 
-export const DIFFICULTIES: Record<Difficulty, { size: number; label: string; enemyCount: number; coinCount: number }> = {
+export const DIFFICULTIES: Record<Difficulty, { size: number; label: string; enemyCount: number; coinCount: number; powerUpCount: number }> = {
   easy: {
     size: 10,
     label: 'Easy',
     enemyCount: 1,
     coinCount: 5,
+    powerUpCount: 2,
   },
   medium: {
     size: 20,
     label: 'Medium',
     enemyCount: 2,
     coinCount: 8,
+    powerUpCount: 3,
   },
   hard: {
     size: 28,
     label: 'Hard',
     enemyCount: 3,
     coinCount: 12,
+    powerUpCount: 4,
   },
 };
 
@@ -41,6 +44,29 @@ export const COLORS = {
   enemyScout: '#f97316', // Orange-500
   enemyHunter: '#ef4444', // Red-500
   enemySentinel: '#d946ef', // Fuchsia-500
+  powerUpShield: '#3b82f6', // Blue-500
+  powerUpFreeze: '#06b6d4', // Cyan-500
+  powerUpSpeed: '#facc15', // Yellow-400
+};
+
+import { PowerUpType } from './types';
+
+export const POWER_UP_CONFIG: Record<PowerUpType, { duration: number; color: string; label: string }> = {
+  shield: {
+    duration: 0, // Instant/until consumed
+    color: COLORS.powerUpShield,
+    label: 'Shield',
+  },
+  freeze: {
+    duration: 3000,
+    color: COLORS.powerUpFreeze,
+    label: 'Freeze Drones',
+  },
+  speed: {
+    duration: 5000,
+    color: COLORS.powerUpSpeed,
+    label: 'Speed Boost',
+  },
 };
 
 export const ENEMY_CONFIG: Record<EnemyType, { speed: number; color: string }> = {

@@ -1,15 +1,18 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Maze, Position, Enemy, Coin } from '../game/types';
+import { Maze, Position, Enemy, Coin, PowerUp, ActivePowerUp } from '../game/types';
 import { COLORS, WALL_THICKNESS } from '../game/constants';
+import { Shield, Snowflake, Zap } from 'lucide-react';
 
 interface MazeCanvasProps {
   maze: Maze;
   playerPosition: Position;
   enemies: Enemy[];
   coins: Coin[];
+  powerUps: PowerUp[];
+  activePowerUps: ActivePowerUp[];
 }
 
-const MazeCanvas: React.FC<MazeCanvasProps> = ({ maze, playerPosition, enemies, coins }) => {
+const MazeCanvas: React.FC<MazeCanvasProps> = ({ maze, playerPosition, enemies, coins, powerUps, activePowerUps }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [animationFrame, setAnimationFrame] = useState(0);
@@ -43,6 +46,65 @@ const MazeCanvas: React.FC<MazeCanvasProps> = ({ maze, playerPosition, enemies, 
     // Clear canvas
     ctx.fillStyle = COLORS.background;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw power-ups
+    powerUps.forEach(pu => {
+      if (pu.collected) return;
+      const px = pu.position.x * cellSize;
+      const py = pu.position.y * cellSize;
+      const pulse = Math.sin(animationFrame * 0.1) * 2 + 5;
+      const floatY = Math.sin(animationFrame * 0.08) * 3;
+
+      let color = COLORS.powerUpShield;
+      if (pu.type === 'freeze') color = COLORS.powerUpFreeze;
+      if (pu.type === 'speed') color = COLORS.powerUpSpeed;
+
+      ctx.save();
+      ctx.translate(px + cellSize / 2, py + cellSize / 2 + floatY);
+
+      // Glow
+      ctx.shadowBlur = pulse * 2;
+      ctx.shadowColor = color;
+
+      // Outer shape
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, cellSize / 3.5, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Icon placeholder / Inner shape
+      ctx.fillStyle = color;
+      if (pu.type === 'shield') {
+          ctx.beginPath();
+          ctx.moveTo(0, -cellSize/6);
+          ctx.lineTo(cellSize/6, -cellSize/12);
+          ctx.lineTo(cellSize/6, cellSize/12);
+          ctx.lineTo(0, cellSize/6);
+          ctx.lineTo(-cellSize/6, cellSize/12);
+          ctx.lineTo(-cellSize/6, -cellSize/12);
+          ctx.closePath();
+          ctx.fill();
+      } else if (pu.type === 'freeze') {
+          ctx.rotate(animationFrame * 0.05);
+          for(let i=0; i<6; i++) {
+              ctx.rotate(Math.PI/3);
+              ctx.fillRect(-1, -cellSize/6, 2, cellSize/3);
+          }
+      } else if (pu.type === 'speed') {
+          ctx.beginPath();
+          ctx.moveTo(cellSize/10, -cellSize/6);
+          ctx.lineTo(-cellSize/6, cellSize/10);
+          ctx.lineTo(0, cellSize/10);
+          ctx.lineTo(-cellSize/10, cellSize/6);
+          ctx.lineTo(cellSize/6, -cellSize/10);
+          ctx.lineTo(0, -cellSize/10);
+          ctx.closePath();
+          ctx.fill();
+      }
+
+      ctx.restore();
+    });
 
     // Draw coins
     coins.forEach(coin => {
@@ -180,6 +242,18 @@ const MazeCanvas: React.FC<MazeCanvasProps> = ({ maze, playerPosition, enemies, 
     ctx.save();
     ctx.translate(px + cellSize / 2, py + cellSize / 2);
 
+    // Shield Visual
+    const hasShield = activePowerUps.some(ap => ap.type === 'shield');
+    if (hasShield) {
+        ctx.strokeStyle = COLORS.powerUpShield;
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = COLORS.powerUpShield;
+        ctx.beginPath();
+        ctx.arc(0, 0, cellSize / 1.8 + Math.sin(animationFrame * 0.1) * 2, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+
     // Player Glow
     ctx.shadowBlur = playerPulse;
     ctx.shadowColor = COLORS.player;
@@ -199,7 +273,7 @@ const MazeCanvas: React.FC<MazeCanvasProps> = ({ maze, playerPosition, enemies, 
 
     ctx.restore();
 
-  }, [maze, playerPosition, enemies, coins, animationFrame]);
+  }, [maze, playerPosition, enemies, coins, powerUps, activePowerUps, animationFrame]);
 
   return (
     <div
