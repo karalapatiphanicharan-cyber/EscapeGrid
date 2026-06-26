@@ -29,6 +29,7 @@ export interface Enemy {
   id: string;
   type: EnemyType;
   position: Position;
+  prevPosition?: Position;
   mode: EnemyMode;
   state: EnemyState;
   speed: number;

@@ -1,11 +1,12 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Difficulty, GameState, Position, Maze, Enemy, EnemyType, EnemyMode, EnemyState } from '../game/types';
-import { generateMaze } from '../game/mazeGenerator';
-import { DIFFICULTIES, ENEMY_CONFIG, MIN_SPAWN_DISTANCE } from '../game/constants';
+import { generateMaze, validateMaze } from '../game/mazeGenerator';
+import { DIFFICULTIES, ENEMY_CONFIG } from '../game/constants';
 import { saveBestTime, getBestTimeForDifficulty } from '../utils/storage';
 import { getNextEnemyPosition } from '../game/enemyAI';
 
 const ENEMY_ENABLED_KEY = 'escape_grid_enemy_enabled';
+const SAFE_SPAWN_DISTANCE = 6;
 
 export const useGame = (initialDifficulty: Difficulty = 'easy') => {
   const [enemyEnabled, setEnemyEnabled] = useState(() => {
@@ -13,12 +14,78 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
     return saved !== null ? JSON.parse(saved) : true;
   });
 
+  const spawnEnemies = useCallback((maze: Maze, difficulty: Difficulty, playerPos: Position): Enemy[] => {
+    if (!enemyEnabled) return [];
+
+    const size = maze.length;
+    const enemies: Enemy[] = [];
+    const count = DIFFICULTIES[difficulty].enemyCount;
+    const exitPos = { x: size - 1, y: size - 1 };
+
+    const occupied = new Set<string>();
+    occupied.add(`${playerPos.x},${playerPos.y}`);
+    occupied.add(`${exitPos.x},${exitPos.y}`);
+
+    const types: EnemyType[] = ['scout', 'hunter', 'sentinel'];
+
+    for (let i = 0; i < count; i++) {
+      let x, y;
+      let attempts = 0;
+      let found = false;
+
+      while (attempts < 200) {
+        attempts++;
+        x = Math.floor(Math.random() * size);
+        y = Math.floor(Math.random() * size);
+
+        const distToPlayer = Math.abs(x - playerPos.x) + Math.abs(y - playerPos.y);
+        const isExitAdjacent = Math.abs(x - exitPos.x) <= 1 && Math.abs(y - exitPos.y) <= 1;
+
+        if (!occupied.has(`${x},${y}`) &&
+            distToPlayer >= SAFE_SPAWN_DISTANCE &&
+            !isExitAdjacent) {
+          found = true;
+          break;
+        }
+      }
+
+      if (found) {
+        occupied.add(`${x!},${y!}`);
+        const type = difficulty === 'easy' ? 'scout' : types[i % types.length];
+        let mode: EnemyMode = 'random';
+        if (difficulty === 'medium') mode = 'tracking';
+        if (difficulty === 'hard') {
+            if (type === 'hunter') mode = 'bfs-hunter';
+            else if (type === 'sentinel') mode = 'tracking';
+            else mode = 'random';
+        }
+
+        enemies.push({
+          id: `enemy-${i}-${Date.now()}`,
+          type,
+          position: { x: x!, y: y! },
+          prevPosition: undefined,
+          mode,
+          state: 'searching',
+          speed: ENEMY_CONFIG[type].speed,
+          color: ENEMY_CONFIG[type].color,
+        });
+      }
+    }
+
+    return enemies;
+  }, [enemyEnabled]);
+
   const [gameState, setGameState] = useState<GameState>(() => {
-    const size = DIFFICULTIES[initialDifficulty].size;
-    const maze = generateMaze(size);
+    let maze = generateMaze(DIFFICULTIES[initialDifficulty].size);
+    while(!validateMaze(maze)) {
+        maze = generateMaze(DIFFICULTIES[initialDifficulty].size);
+    }
+
+    const playerPos = { x: 0, y: 0 };
     return {
       maze,
-      playerPosition: { x: 0, y: 0 },
+      playerPosition: playerPos,
       difficulty: initialDifficulty,
       moves: 0,
       status: 'idle',
@@ -31,59 +98,15 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
 
   const [bestTime, setBestTime] = useState(getBestTimeForDifficulty(initialDifficulty));
 
-  const spawnEnemies = useCallback((maze: Maze, difficulty: Difficulty, playerPos: Position): Enemy[] => {
-    if (!enemyEnabled) return [];
-
-    const size = maze.length;
-    const enemies: Enemy[] = [];
-    const count = DIFFICULTIES[difficulty].enemyCount;
-    const occupied = new Set<string>();
-    occupied.add(`${playerPos.x},${playerPos.y}`);
-    occupied.add(`${size - 1},${size - 1}`);
-
-    const types: EnemyType[] = ['scout', 'hunter', 'sentinel'];
-
-    for (let i = 0; i < count; i++) {
-      let x, y;
-      let attempts = 0;
-      do {
-        x = Math.floor(Math.random() * size);
-        y = Math.floor(Math.random() * size);
-        attempts++;
-      } while (
-        (occupied.has(`${x},${y}`) ||
-         Math.abs(x - playerPos.x) + Math.abs(y - playerPos.y) < MIN_SPAWN_DISTANCE) &&
-        attempts < 100
-      );
-
-      occupied.add(`${x},${y}`);
-
-      const type = difficulty === 'easy' ? 'scout' : types[i % types.length];
-      let mode: EnemyMode = 'random';
-      if (difficulty === 'medium') mode = 'tracking';
-      if (difficulty === 'hard') {
-          if (type === 'hunter') mode = 'bfs-hunter';
-          else if (type === 'sentinel') mode = 'tracking';
-          else mode = 'random';
-      }
-
-      enemies.push({
-        id: `enemy-${i}-${Date.now()}`,
-        type,
-        position: { x, y },
-        mode,
-        state: 'searching',
-        speed: ENEMY_CONFIG[type].speed,
-        color: ENEMY_CONFIG[type].color,
-      });
-    }
-
-    return enemies;
-  }, [enemyEnabled]);
-
   const startNewGame = useCallback((difficulty: Difficulty = gameState.difficulty) => {
     const size = DIFFICULTIES[difficulty].size;
-    const maze = generateMaze(size);
+    let maze = generateMaze(size);
+    let attempts = 0;
+    while(!validateMaze(maze) && attempts < 10) {
+        maze = generateMaze(size);
+        attempts++;
+    }
+
     const playerPos = { x: 0, y: 0 };
     setGameState({
       maze,
@@ -131,10 +154,11 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
       let newX = x;
       let newY = y;
 
-      if ((direction === 'arrowup' || direction === 'w') && !cell.walls.top) newY--;
-      else if ((direction === 'arrowdown' || direction === 's') && !cell.walls.bottom) newY++;
-      else if ((direction === 'arrowleft' || direction === 'a') && !cell.walls.left) newX--;
-      else if ((direction === 'arrowright' || direction === 'd') && !cell.walls.right) newX++;
+      const dir = direction.toLowerCase();
+      if ((dir === 'arrowup' || dir === 'w') && !cell.walls.top) newY--;
+      else if ((dir === 'arrowdown' || dir === 's') && !cell.walls.bottom) newY++;
+      else if ((dir === 'arrowleft' || dir === 'a') && !cell.walls.left) newX--;
+      else if ((dir === 'arrowright' || dir === 'd') && !cell.walls.right) newX++;
 
       if (newX === x && newY === y) return prev;
 
@@ -193,11 +217,16 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
             setGameState(prev => {
                 if (prev.status !== 'playing') return prev;
 
+                // Find the latest version of this enemy in the current state
+                const currentEnemy = prev.enemies.find(e => e.id === enemy.id);
+                if (!currentEnemy) return prev;
+
                 const newPos = getNextEnemyPosition(
-                    enemy.position,
+                    currentEnemy.position,
+                    currentEnemy.prevPosition,
                     prev.playerPosition,
                     prev.maze,
-                    enemy.mode
+                    currentEnemy.mode
                 );
 
                 // Update state of enemy based on distance
@@ -207,7 +236,12 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
                 if (dist < 5) newState = 'pursuing';
 
                 const updatedEnemies = prev.enemies.map(e =>
-                    e.id === enemy.id ? { ...e, position: newPos, state: newState } : e
+                    e.id === enemy.id ? {
+                        ...e,
+                        position: newPos,
+                        prevPosition: currentEnemy.position,
+                        state: newState
+                    } : e
                 );
 
                 // Check collision

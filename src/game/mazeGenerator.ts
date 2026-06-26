@@ -1,5 +1,10 @@
 import { Cell, Maze, Position } from './types';
 
+/**
+ * Generates a randomized maze using recursive backtracking.
+ * Guarantees a path exists from start to exit.
+ * Adds loops to ensure multiple routes.
+ */
 export const generateMaze = (size: number): Maze => {
   // Initialize maze with all walls
   const maze: Maze = Array.from({ length: size }, (_, y) =>
@@ -18,6 +23,7 @@ export const generateMaze = (size: number): Maze => {
   maze[0][0].visited = true;
   stack.push(startPos);
 
+  // Core generation using recursive backtracking
   while (stack.length > 0) {
     const current = stack[stack.length - 1];
     const neighbors = getUnvisitedNeighbors(current, maze, size);
@@ -32,7 +38,91 @@ export const generateMaze = (size: number): Maze => {
     }
   }
 
+  // Post-processing: Add loops to ensure multiple routes
+  addLoops(maze, Math.floor(size / 2));
+
   return maze;
+};
+
+/**
+ * Adds loops by removing random walls.
+ */
+const addLoops = (maze: Maze, count: number) => {
+  const size = maze.length;
+  let added = 0;
+  let attempts = 0;
+
+  while (added < count && attempts < count * 5) {
+    attempts++;
+    const x = Math.floor(Math.random() * (size - 2)) + 1;
+    const y = Math.floor(Math.random() * (size - 2)) + 1;
+    const cell = maze[y][x];
+
+    // Choose a wall to remove
+    const walls = Object.entries(cell.walls).filter(([_, hasWall]) => hasWall);
+    if (walls.length > 0) {
+      const [wall] = walls[Math.floor(Math.random() * walls.length)];
+
+      let nx = x, ny = y;
+      if (wall === 'top') ny--;
+      else if (wall === 'bottom') ny++;
+      else if (wall === 'left') nx--;
+      else if (wall === 'right') nx++;
+
+      if (nx >= 0 && nx < size && ny >= 0 && ny < size) {
+        removeWalls({ x, y }, { x: nx, y: ny }, maze);
+        added++;
+      }
+    }
+  }
+};
+
+/**
+ * Validates the maze satisfies all critical requirements.
+ */
+export const validateMaze = (maze: Maze): boolean => {
+  const size = maze.length;
+  const start = { x: 0, y: 0 };
+  const exit = { x: size - 1, y: size - 1 };
+
+  // 1. Player and Exit occupy different cells
+  if (start.x === exit.x && start.y === exit.y) return false;
+
+  // 2. Player can move immediately
+  const startMoves = getValidMoves(start, maze);
+  if (startMoves.length === 0) return false;
+
+  // 3. Exit is reachable
+  const path = findPath(start, exit, maze);
+  if (!path) return false;
+
+  // 4. At least two unique routes exist from Player to Exit
+  // We check this by removing every edge from the first path found one by one
+  // and seeing if we can find an alternative path.
+  // Actually, we just need to find ONE edge whose removal doesn't break connectivity.
+  let hasAlternative = false;
+  for (let i = 0; i < path.length - 1; i++) {
+    const edgeStart = path[i];
+    const edgeEnd = path[i + 1];
+
+    const originalWallsStart = { ...maze[edgeStart.y][edgeStart.x].walls };
+    const originalWallsEnd = { ...maze[edgeEnd.y][edgeEnd.x].walls };
+
+    blockEdge(edgeStart, edgeEnd, maze);
+    const altPath = findPath(start, exit, maze);
+
+    maze[edgeStart.y][edgeStart.x].walls = originalWallsStart;
+    maze[edgeEnd.y][edgeEnd.x].walls = originalWallsEnd;
+
+    if (altPath) {
+      hasAlternative = true;
+      break;
+    }
+  }
+
+  if (!hasAlternative) return false;
+
+  return true;
 };
 
 const getUnvisitedNeighbors = (pos: Position, maze: Maze, size: number): Position[] => {
@@ -45,6 +135,46 @@ const getUnvisitedNeighbors = (pos: Position, maze: Maze, size: number): Positio
   if (x > 0 && !maze[y][x - 1].visited) neighbors.push({ x: x - 1, y });
 
   return neighbors;
+};
+
+// Re-implementing correctly to fix potential bugs found during inspection
+const getValidMoves = (pos: Position, maze: Maze): Position[] => {
+  const moves: Position[] = [];
+  const cell = maze[pos.y][pos.x];
+  if (!cell.walls.top) moves.push({ x: pos.x, y: pos.y - 1 });
+  if (!cell.walls.right) moves.push({ x: pos.x + 1, y: pos.y });
+  if (!cell.walls.bottom) moves.push({ x: pos.x, y: pos.y + 1 });
+  if (!cell.walls.left) moves.push({ x: pos.x - 1, y: pos.y });
+  return moves;
+};
+
+const findPath = (start: Position, target: Position, maze: Maze): Position[] | null => {
+  const queue: { pos: Position; path: Position[] }[] = [{ pos: start, path: [start] }];
+  const visited = new Set<string>();
+  visited.add(`${start.x},${start.y}`);
+
+  while (queue.length > 0) {
+    const { pos, path } = queue.shift()!;
+    if (pos.x === target.x && pos.y === target.y) return path;
+
+    for (const move of getValidMoves(pos, maze)) {
+      const key = `${move.x},${move.y}`;
+      if (!visited.has(key)) {
+        visited.add(key);
+        queue.push({ pos: move, path: [...path, move] });
+      }
+    }
+  }
+  return null;
+};
+
+const blockEdge = (a: Position, b: Position, maze: Maze) => {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  if (dx === 1) { maze[a.y][a.x].walls.left = true; maze[b.y][b.x].walls.right = true; }
+  else if (dx === -1) { maze[a.y][a.x].walls.right = true; maze[b.y][b.x].walls.left = true; }
+  if (dy === 1) { maze[a.y][a.x].walls.top = true; maze[b.y][b.x].walls.bottom = true; }
+  else if (dy === -1) { maze[a.y][a.x].walls.bottom = true; maze[b.y][b.x].walls.top = true; }
 };
 
 const removeWalls = (a: Position, b: Position, maze: Maze) => {
