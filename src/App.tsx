@@ -6,6 +6,7 @@ import MazeCanvas from './components/MazeCanvas';
 import ControlPanel from './components/ControlPanel';
 import StatsPanel from './components/StatsPanel';
 import EnergyCacheCard from './components/EnergyCacheCard';
+import CoinSystemCard from './components/CoinSystemCard';
 import VictoryModal from './components/VictoryModal';
 import GameOverModal from './components/GameOverModal';
 import EnemyStatusCard from './components/EnemyStatusCard';
@@ -19,10 +20,12 @@ const App: React.FC = () => {
     gameState,
     bestTime,
     enemyEnabled,
+    coinsEnabled,
     startNewGame,
     restartGame,
     movePlayer,
-    toggleEnemySystem
+    toggleEnemySystem,
+    toggleCoinSystem
   } = useGame('easy');
   const { time, resetTimer } = useTimer(gameState.status === 'playing');
 
@@ -67,10 +70,16 @@ const App: React.FC = () => {
             difficulty={gameState.difficulty}
             bestTime={bestTime}
           />
-          <EnergyCacheCard
-            collected={gameState.coins.filter(c => c.collected).length}
-            total={gameState.coins.length}
-            score={gameState.score}
+          {coinsEnabled && (
+            <EnergyCacheCard
+              collected={gameState.coins.filter(c => c.collected).length}
+              total={gameState.coins.length}
+              score={gameState.score}
+            />
+          )}
+          <CoinSystemCard
+            enabled={coinsEnabled}
+            onToggle={toggleCoinSystem}
           />
           <EnemyStatusCard
             enemies={gameState.enemies}
@@ -123,6 +132,7 @@ const App: React.FC = () => {
           score={gameState.score}
           coinsCollected={gameState.coins.filter(c => c.collected).length}
           totalCoins={gameState.coins.length}
+          coinsEnabled={coinsEnabled}
           onRestart={handleRestart}
           onNewMaze={() => handleNewMaze(gameState.difficulty)}
         />
