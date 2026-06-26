@@ -54,6 +54,7 @@ export interface GameState {
   coins: Coin[];
   score: number;
   enemyEnabled: boolean;
+  coinsEnabled: boolean;
   gameId: string;
   capturedBy?: EnemyType;
 }

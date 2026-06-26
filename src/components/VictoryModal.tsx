@@ -11,6 +11,7 @@ interface VictoryModalProps {
   score?: number;
   coinsCollected?: number;
   totalCoins?: number;
+  coinsEnabled?: boolean;
   onRestart: () => void;
   onNewMaze: () => void;
 }
@@ -22,6 +23,7 @@ const VictoryModal: React.FC<VictoryModalProps> = ({
   score,
   coinsCollected,
   totalCoins,
+  coinsEnabled = true,
   onRestart,
   onNewMaze,
 }) => {
@@ -54,7 +56,7 @@ const VictoryModal: React.FC<VictoryModalProps> = ({
               <span className="block text-[8px] font-mono text-slate-500 uppercase mb-1 tracking-widest">Accuracy</span>
               <span className="text-2xl font-black font-mono text-purple-400 tracking-tight">{moves}</span>
             </div>
-            {score !== undefined && (
+            {coinsEnabled && score !== undefined && (
               <div className="p-4 rounded-3xl bg-slate-800/30 border border-slate-700/50 group hover:border-amber-500/30 transition-colors col-span-2">
                 <div className="flex justify-between items-center px-2">
                   <div className="text-left">

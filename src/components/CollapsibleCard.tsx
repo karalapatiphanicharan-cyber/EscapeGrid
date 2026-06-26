@@ -28,7 +28,7 @@ const CollapsibleCard: React.FC<CollapsibleCardProps> = ({
   }, [isExpanded, id]);
 
   return (
-    <div className="w-full rounded-2xl bg-slate-900/40 border border-slate-800/60 shadow-xl backdrop-blur-md overflow-hidden transition-all duration-300">
+    <div id={id} className="w-full rounded-2xl bg-slate-900/40 border border-slate-800/60 shadow-xl backdrop-blur-md overflow-hidden transition-all duration-300">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors group"

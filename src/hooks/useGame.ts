@@ -7,11 +7,17 @@ import { saveBestTime, getBestTimeForDifficulty } from '../utils/storage';
 import { getNextEnemyPosition } from '../game/enemyAI';
 
 const ENEMY_ENABLED_KEY = 'escape_grid_enemy_enabled';
+const COINS_ENABLED_KEY = 'escape_grid_coins_enabled';
 const SAFE_SPAWN_DISTANCE = 6;
 
 export const useGame = (initialDifficulty: Difficulty = 'easy') => {
   const [enemyEnabled, setEnemyEnabled] = useState(() => {
     const saved = localStorage.getItem(ENEMY_ENABLED_KEY);
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+
+  const [coinsEnabled, setCoinsEnabled] = useState(() => {
+    const saved = localStorage.getItem(COINS_ENABLED_KEY);
     return saved !== null ? JSON.parse(saved) : true;
   });
 
@@ -100,6 +106,7 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
       coins: [],
       score: 0,
       enemyEnabled,
+      coinsEnabled,
       gameId: Math.random().toString(36).substring(7),
     };
   });
@@ -158,8 +165,10 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
       enemies = spawnEnemies(maze, difficulty, playerPos);
       if (enemyEnabled && !validateGameSetup(maze, playerPos, enemies)) continue;
 
-      coins = spawnCoins(maze, difficulty, playerPos, enemies.map(e => e.position));
-      if (!validateCoinsReachability(maze, playerPos, coins)) continue;
+      if (coinsEnabled) {
+        coins = spawnCoins(maze, difficulty, playerPos, enemies.map(e => e.position));
+        if (!validateCoinsReachability(maze, playerPos, coins)) continue;
+      }
 
       valid = true;
       setGameState({
@@ -174,6 +183,7 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
         coins,
         score: 0,
         enemyEnabled,
+        coinsEnabled,
         gameId: Math.random().toString(36).substring(7),
       });
     }
@@ -191,7 +201,10 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
       }
 
       // Reset coins for restart
-      const newCoins = spawnCoins(prev.maze, prev.difficulty, { x: 0, y: 0 }, enemies.map(e => e.position));
+      let newCoins: Coin[] = [];
+      if (coinsEnabled) {
+        newCoins = spawnCoins(prev.maze, prev.difficulty, { x: 0, y: 0 }, enemies.map(e => e.position));
+      }
 
       return {
         ...prev,
@@ -207,6 +220,18 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
       };
     });
   }, [spawnEnemies, enemyEnabled, validateGameSetup]);
+
+  const toggleCoinSystem = useCallback(() => {
+    const newVal = !coinsEnabled;
+    setCoinsEnabled(newVal);
+    localStorage.setItem(COINS_ENABLED_KEY, JSON.stringify(newVal));
+    setGameState(prev => ({
+        ...prev,
+        coinsEnabled: newVal,
+        coins: newVal ? spawnCoins(prev.maze, prev.difficulty, prev.playerPosition, prev.enemies.map(e => e.position)) : [],
+        score: newVal ? prev.score : 0, // Reset score if disabling? Actually, user says disable logic.
+    }));
+  }, [coinsEnabled]);
 
   const toggleEnemySystem = useCallback(() => {
     const newVal = !enemyEnabled;
@@ -265,13 +290,17 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
 
       // Check for coin collection
       let newScore = prev.score;
-      const updatedCoins = prev.coins.map(coin => {
-          if (!coin.collected && coin.position.x === newX && coin.position.y === newY) {
-              newScore += SCORING.COIN_VALUE;
-              return { ...coin, collected: true };
-          }
-          return coin;
-      });
+      let updatedCoins = prev.coins;
+
+      if (coinsEnabled) {
+        updatedCoins = prev.coins.map(coin => {
+            if (!coin.collected && coin.position.x === newX && coin.position.y === newY) {
+                newScore += SCORING.COIN_VALUE;
+                return { ...coin, collected: true };
+            }
+            return coin;
+        });
+      }
 
       const isWon = prev.maze[newY][newX].isExit;
 
@@ -382,9 +411,11 @@ export const useGame = (initialDifficulty: Difficulty = 'easy') => {
     gameState,
     bestTime,
     enemyEnabled,
+    coinsEnabled,
     startNewGame,
     restartGame,
     movePlayer,
     toggleEnemySystem,
+    toggleCoinSystem,
   };
 };
