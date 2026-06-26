@@ -85,3 +85,9 @@ export const ENEMY_CONFIG: Record<EnemyType, { speed: number; color: string }> =
 };
 
 export const MIN_SPAWN_DISTANCE = 5;
+
+export const AI_ASSIST_CONFIG = {
+  HINT_DURATION: 2000,
+  FULL_PATH_DURATION: 4000,
+  HINT_LENGTH: 5,
+};

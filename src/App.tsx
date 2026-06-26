@@ -9,6 +9,7 @@ import EnergyCacheCard from './components/EnergyCacheCard';
 import CoinSystemCard from './components/CoinSystemCard';
 import PowerUpSystemCard from './components/PowerUpSystemCard';
 import ActivePowerUpsCard from './components/ActivePowerUpsCard';
+import AIAssistCard from './components/AIAssistCard';
 import VictoryModal from './components/VictoryModal';
 import GameOverModal from './components/GameOverModal';
 import EnemyStatusCard from './components/EnemyStatusCard';
@@ -24,12 +25,16 @@ const App: React.FC = () => {
     enemyEnabled,
     coinsEnabled,
     powerUpsEnabled,
+    aiAssistEnabled,
     startNewGame,
     restartGame,
     movePlayer,
     toggleEnemySystem,
     toggleCoinSystem,
-    togglePowerUpSystem
+    togglePowerUpSystem,
+    toggleAIAssist,
+    requestHint,
+    requestFullPath,
   } = useGame('easy');
   const { time, resetTimer } = useTimer(gameState.status === 'playing');
 
@@ -92,6 +97,14 @@ const App: React.FC = () => {
           {powerUpsEnabled && (
             <ActivePowerUpsCard activePowerUps={gameState.activePowerUps} />
           )}
+          <AIAssistCard
+            enabled={aiAssistEnabled}
+            onToggle={toggleAIAssist}
+            onRequestHint={requestHint}
+            onRequestFullPath={requestFullPath}
+            isGameActive={gameState.status === 'playing'}
+            hasActivePath={gameState.assistantPath.length > 0}
+          />
           <EnemyStatusCard
             enemies={gameState.enemies}
             enabled={enemyEnabled}
@@ -117,7 +130,9 @@ const App: React.FC = () => {
               coins={gameState.coins}
             powerUps={gameState.powerUps}
             activePowerUps={gameState.activePowerUps}
-            />
+            assistantPath={gameState.assistantPath}
+            assistantType={gameState.assistantType}
+          />
 
             <div className="mt-8 w-full max-w-md">
               <MobileControls onMove={movePlayer} />

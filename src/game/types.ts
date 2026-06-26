@@ -68,10 +68,14 @@ export interface GameState {
   coins: Coin[];
   powerUps: PowerUp[];
   activePowerUps: ActivePowerUp[];
+  assistantPath: Position[];
+  assistantType: 'hint' | 'full' | null;
+  assistantEndTime: number | null;
   score: number;
   enemyEnabled: boolean;
   coinsEnabled: boolean;
   powerUpsEnabled: boolean;
+  aiAssistEnabled: boolean;
   gameId: string;
   capturedBy?: EnemyType;
 }
