@@ -36,9 +36,9 @@
 
 ## 📸 Screenshots
 
-| Labyrinth Interface | System Controls |
+| System Controls |
 | :---: | :---: |
-| ![Gameplay](./screenshots/gameplay.png) | ![Controls](./screenshots/gameplay.png) |
+ | ![Controls](./screenshots/gameplay.png) |
 
 ---
 
@@ -153,13 +153,7 @@ escape-grid/
 
 ---
 
-## 🛣 Future Roadmap
 
-- 🌐 **Global Leaderboards**: Sync scores with a central database.
-- 👥 **Multiplayer Sync**: Co-op or competitive escape modes.
-- 🏆 **Achievement System**: Unlockable ranks and cosmetic grid skins.
-- 🗺 **Complex Maps**: Non-square grids and custom tile-sets.
-- 🔊 **Sonic Environment**: Spatial audio and synth-wave soundtrack.
 
 ---
 
